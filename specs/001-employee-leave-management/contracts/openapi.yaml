@@ -43,7 +43,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Principal' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /auth/logout:
     post:
       tags: [Authentication]
@@ -140,6 +142,7 @@ paths:
               schema: { $ref: '#/components/schemas/LeaveCalculation' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /employee/leave-requests:
     get:
@@ -176,6 +179,7 @@ paths:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /employee/leave-requests/{requestId}:
@@ -214,6 +218,7 @@ paths:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
