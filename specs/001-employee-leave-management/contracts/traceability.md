@@ -4,7 +4,7 @@ This matrix keeps Phase 1 design tied to the approved specification. Task/test I
 
 | Specification coverage | Design location | Contract, verification, and current task/test mapping |
 |---|---|---|
-| FR-001–FR-003: authentication, logout, roles, ownership | `plan.md` authorization; UserAccount/Role/EmployeeProfile; ownership predicates | Auth/employee contracts; `authorization.md`; quickstart 1; T027–T033, T038, T047, T049, T058, T120 (tests T027, T032, T038, T058, T120) |
+| FR-001–FR-003: authentication, logout, roles, ownership | `plan.md` authorization; atomic administrator employee/account provisioning; input-only password hashing; non-empty duplicate-free closed roles; UserAccount/Role/EmployeeProfile; ownership predicates | Auth/employee contracts and explicit operation problem responses; `authorization.md`; quickstart 1 and 6; T027–T033, T038, T047, T049, T058, T073, T077, T079, T085–T087, T119–T120 (tests T027, T032, T038, T058, T073, T077, T119–T120) |
 | FR-004–FR-005: dashboard, leave types, balances | Frontend design; LeaveType/LeavePolicyVersion/LeaveBalance | Dashboard/balance/type operations; T038, T042–T043, T048–T050, T054 (tests T038, T039) |
 | FR-006–FR-008: request input, calculation, validation | LeaveRequest/Slot; calculation rules | Calculate/submit operations; quickstart 2; T035, T038–T045, T049, T052, T057 (tests T035, T038, T039, T057) |
 | FR-009: active overlap prevention | Transaction strategy; active-slot partial unique index | `409 LEAVE_OVERLAP`; quickstart 3; T036–T038, T045–T046 (tests T036–T038) |
@@ -18,7 +18,7 @@ This matrix keeps Phase 1 design tied to the approved specification. Task/test I
 | FR-027–FR-028: immutable audit and status trace | AuditEvent/StatusHistory; append-only constraints | Audit API and rollback; quickstart 4–8; T037, T045, T053, T059, T064–T065, T075, T083–T084, T094–T095, T099–T100, T107, T112–T115, T121 (tests T037, T059, T075, T094–T095, T107, T121) |
 | FR-029–FR-030: organization requests and summaries | Reporting module/request indexes | Administrator report contracts; quickstart 6; T106, T108, T110–T117 (tests T106, T108–T109, T117) |
 | FR-031: employee/team calendars and holidays | Dedicated EmployeeTeamCalendarEntry; exact same-manager/active/status predicate | Privacy-safe employee schema and manager schema; quickstart 7; T038, T042, T048–T049, T055, T057 (tests T038, T057; cross-cutting T120, T127) |
-| FR-032: safe errors and stale semantics | Shared Problem schema; `STALE_VERSION` behavior | API/security/frontend errors; T025–T026, T030–T031, T046, T051, T063, T096, T101 (tests T025, T030, T096) |
+| FR-032: safe errors and stale semantics | Shared Problem schema; operation-specific `400`/`401`/`403`/`404`/`409` responses; `STALE_VERSION` behavior | API/security/frontend errors; T025–T026, T030–T031, T046, T051, T063, T077, T096, T101, T119–T120, T130 (tests T025, T030, T077, T096, T119–T120, T130) |
 | FR-033–FR-034: configurable/consistent rules | Effective policy/shared calculator | Preview/submit/decision/cancel/report checks; T035, T041, T074, T081, T088, T092 (tests T035, T074, T092) |
 | FR-035: exact administrator corrections | Three-row transition table; correction transaction/version | Closed correction-action enum; quickstart 6; T095–T101, T104–T105, T121 (tests T095–T097, T105, T121) |
 

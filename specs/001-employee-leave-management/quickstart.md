@@ -99,6 +99,8 @@ The smoke suite uses local-demo accounts and cleans or recreates its test data. 
 2. Verify an unauthenticated API call returns `401` and a wrong-role call returns `403` using the shared problem format.
 3. Verify logout invalidates the session and the next protected call returns `401`.
 4. Verify frontend role guards hide unavailable navigation while direct API calls are still denied by the backend.
+5. As an administrator, create an employee with `initialPassword` and one or more unique values from `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`; verify an empty, duplicate, or unknown role set and a missing password return `400 VALIDATION_FAILED`.
+6. Verify the created account can authenticate with the supplied password, the stored credential is a secure hash, and no employee, principal, audit, or other response contains `initialPassword`, a plaintext password, or a password hash.
 
 Expected result: all protected access is authenticated, role-scoped, and CSRF-protected.
 
@@ -143,7 +145,7 @@ Expected result: permitted cancellation is fully atomic and late self-cancellati
 
 ### 6. Administration and audit
 
-1. Create/update an employee and manager relationship and verify it immediately controls manager scope.
+1. Create an employee and associated password-backed account together, then update its manager relationship and verify it immediately controls manager scope. Verify create requires input-only `initialPassword`, all create/update/response role arrays use the same non-empty duplicate-free closed enum, and no response exposes password material.
 2. Create an effective-dated leave policy and holiday and verify new calculations use them. Soft-deactivate the holiday with its required `expectedVersion`; verify new/recalculated requests ignore it while historical request snapshots, status history, and audit records remain unchanged.
 3. Adjust a balance with a reason and verify summary, immutable movement, and audit event.
 4. Perform each allowed correction with a reason and current `expectedVersion`: `PENDING -> CANCELLED` releases reserved balance and deactivates occupancy; `APPROVED -> CANCELLED` restores consumed balance and deactivates occupancy; `REJECTED -> PENDING` revalidates current policy/dates/duration/overlap/available balance, re-reserves tracked balance, and restores pending occupancy. Verify immutable ledger/status/audit additions rather than rewriting prior history.

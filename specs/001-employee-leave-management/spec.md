@@ -4,7 +4,7 @@
 
 **Created**: 2026-08-19
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "Build an Employee Leave Management System MVP with Employee, Manager, and Administrator roles."
 

@@ -53,6 +53,7 @@ paths:
       responses:
         '204': { description: Session invalidated }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /auth/me:
     get:
       tags: [Authentication]
@@ -77,6 +78,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/LeaveTypeSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /holidays:
     get:
       tags: [Reference]
@@ -92,6 +94,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Holiday' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
   /employee/dashboard:
     get:
@@ -116,6 +120,7 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/LeaveBalance' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
   /employee/leave-requests/calculate:
     post:
       tags: [Employee]
@@ -134,6 +139,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveCalculation' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /employee/leave-requests:
     get:
@@ -149,6 +155,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
     post:
       tags: [Employee]
       operationId: submitOwnLeaveRequest
@@ -167,6 +175,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /employee/leave-requests/{requestId}:
@@ -181,6 +190,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
   /employee/leave-requests/{requestId}/cancel:
     post:
@@ -201,6 +212,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /employee/team-calendar:
@@ -218,6 +232,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/EmployeeTeamCalendarEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
 
   /manager/leave-requests:
     get:
@@ -233,6 +249,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
   /manager/leave-requests/{requestId}:
     get:
@@ -246,6 +264,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ManagerLeaveRequestDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
   /manager/leave-requests/{requestId}/approve:
     post:
@@ -266,7 +287,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /manager/leave-requests/{requestId}/reject:
     post:
@@ -287,7 +311,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '422': { $ref: '#/components/responses/Unprocessable' }
   /manager/team-calendar:
@@ -305,6 +332,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/ManagerCalendarEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/employees:
@@ -320,6 +349,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/EmployeePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Administration]
@@ -338,6 +369,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Employee' }
         '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/employees/{employeeId}:
     patch:
       tags: [Administration]
@@ -356,6 +390,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Employee' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/leave-types:
@@ -370,6 +407,8 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/LeaveTypeDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Administration]
       operationId: createLeaveType
@@ -386,6 +425,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveTypeDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/leave-types/{leaveTypeId}:
     patch:
       tags: [Administration]
@@ -404,6 +447,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveTypeDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/leave-types/{leaveTypeId}/policies:
     post:
@@ -423,6 +470,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeavePolicy' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/holidays:
     get:
@@ -439,6 +490,9 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/Holiday' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     post:
       tags: [Administration]
       operationId: createHoliday
@@ -455,6 +509,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Holiday' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/holidays/{holidayId}:
     patch:
       tags: [Administration]
@@ -473,6 +531,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Holiday' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/employees/{employeeId}/leave-balances:
     get:
@@ -488,6 +550,10 @@ paths:
               schema:
                 type: array
                 items: { $ref: '#/components/schemas/LeaveBalance' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
     post:
       tags: [Administration]
       operationId: createEmployeeBalancePeriod
@@ -506,6 +572,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveBalance' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/employees/{employeeId}/leave-balances/{balanceId}/adjustments:
     post:
@@ -527,6 +597,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveBalance' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/leave-requests:
     get:
@@ -544,6 +618,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /admin/leave-requests/{requestId}/corrections:
     post:
       tags: [Administration]
@@ -563,6 +640,10 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
   /admin/reports/leave-summary:
     get:
@@ -577,6 +658,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveSummaryReport' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /admin/audit-events:
     get:
       tags: [Administration]
@@ -596,6 +680,9 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/AuditEventPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
 
 components:
   securitySchemes:
@@ -708,15 +795,21 @@ components:
         password: { type: string, minLength: 1, maxLength: 200 }
     Principal:
       type: object
+      additionalProperties: false
       required: [userId, employeeId, displayName, roles]
       properties:
         userId: { type: string, format: uuid }
         employeeId: { type: string, format: uuid }
         displayName: { type: string }
-        roles:
-          type: array
-          uniqueItems: true
-          items: { type: string, enum: [EMPLOYEE, MANAGER, ADMINISTRATOR] }
+        roles: { $ref: '#/components/schemas/Roles' }
+    Role:
+      type: string
+      enum: [EMPLOYEE, MANAGER, ADMINISTRATOR]
+    Roles:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items: { $ref: '#/components/schemas/Role' }
     LeaveStatus:
       type: string
       enum: [PENDING, APPROVED, REJECTED, CANCELLED]
@@ -889,7 +982,7 @@ components:
     EmployeeCreateCommand:
       type: object
       additionalProperties: false
-      required: [employeeNumber, displayName, email, login, roles, active]
+      required: [employeeNumber, displayName, email, login, initialPassword, roles, active]
       properties:
         employeeNumber: { type: string, minLength: 1, maxLength: 64 }
         displayName: { type: string, minLength: 1, maxLength: 160 }
@@ -897,9 +990,7 @@ components:
         login: { type: string, minLength: 1, maxLength: 254 }
         initialPassword: { type: string, minLength: 12, maxLength: 200, writeOnly: true }
         managerId: { type: [string, 'null'], format: uuid }
-        roles:
-          type: array
-          items: { type: string, enum: [EMPLOYEE, MANAGER, ADMINISTRATOR] }
+        roles: { $ref: '#/components/schemas/Roles' }
         active: { type: boolean }
     EmployeeUpdateCommand:
       type: object
@@ -911,13 +1002,12 @@ components:
         email: { type: string, format: email, maxLength: 254 }
         login: { type: string, minLength: 1, maxLength: 254 }
         managerId: { type: [string, 'null'], format: uuid }
-        roles:
-          type: array
-          items: { type: string, enum: [EMPLOYEE, MANAGER, ADMINISTRATOR] }
+        roles: { $ref: '#/components/schemas/Roles' }
         active: { type: boolean }
         expectedVersion: { type: integer, format: int64, minimum: 0 }
     Employee:
       type: object
+      additionalProperties: false
       required: [id, employeeNumber, displayName, email, roles, active, version]
       properties:
         id: { type: string, format: uuid }
@@ -926,9 +1016,7 @@ components:
         email: { type: string, format: email }
         managerId: { type: [string, 'null'], format: uuid }
         managerName: { type: [string, 'null'] }
-        roles:
-          type: array
-          items: { type: string }
+        roles: { $ref: '#/components/schemas/Roles' }
         active: { type: boolean }
         version: { type: integer, format: int64 }
     EmployeePage:
@@ -1091,8 +1179,8 @@ components:
         entityId: { type: string, format: uuid }
         occurredAt: { type: string, format: date-time }
         reason: { type: [string, 'null'] }
-        beforeData: { type: [object, 'null'], additionalProperties: true }
-        afterData: { type: [object, 'null'], additionalProperties: true }
+        beforeData: { type: [object, 'null'], additionalProperties: true, description: Minimal non-secret prior values; must never contain plaintext passwords, password hashes, or initialPassword }
+        afterData: { type: [object, 'null'], additionalProperties: true, description: Minimal non-secret resulting values; must never contain plaintext passwords, password hashes, or initialPassword }
         correlationId: { type: [string, 'null'] }
     AuditEventPage:
       type: object

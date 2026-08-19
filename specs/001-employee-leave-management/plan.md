@@ -24,7 +24,7 @@ Build a responsive React and TypeScript single-page application backed by one Ja
 
 **Performance Goals**: For normal indexed operations at the agreed MVP load, 95% of interactive API requests complete within 500 ms and calendar/report queries within 2 seconds; the authenticated application shell becomes usable within 2 seconds on a typical broadband connection
 
-**Constraints**: Single organization; no microservices; session authentication only; CSRF protection enabled; manager scope, employee ownership, employee team-calendar privacy, administrator scope, and self-approval restrictions enforced in repository/application services; `tracks_balance=true` always validates and reserves balance; state, balance, reservation, ledger, occupancy, history, and audit changes are atomic; required `expectedVersion` values protect concurrency-sensitive updates; organization-specific rules remain data-driven
+**Constraints**: Single organization; no microservices; session authentication only; CSRF protection enabled; administrators create each employee and associated password-backed account together; every account has at least one unique role from `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`; plaintext passwords are input-only and never persisted or returned; manager scope, employee ownership, employee team-calendar privacy, administrator scope, and self-approval restrictions enforced in repository/application services; `tracks_balance=true` always validates and reserves balance; state, balance, reservation, ledger, occupancy, history, and audit changes are atomic; required `expectedVersion` values protect concurrency-sensitive updates; organization-specific rules remain data-driven
 
 **Scale/Scope**: One-organization MVP with paginated organization and history queries. No business volume target is approved, so production capacity sizing is deferred; schema indexes, bounded page sizes, and database-backed concurrency controls avoid coupling correctness to a guessed user count.
 
@@ -34,14 +34,14 @@ Build a responsive React and TypeScript single-page application backed by one Ja
 
 ### Pre-design gate
 
-**Re-run after latest clarification**: 2026-08-19
+**Re-run after latest clarification and focused contract reconciliation**: 2026-08-19
 
 | Principle | Result | Planning evidence |
 |---|---|---|
-| Spec Kit artifacts are authoritative | PASS | The plan traces to `spec.md` and its 2026-08-19 clarification session; no business policy is replaced by a technical default. |
-| Traceable, task-gated delivery | PASS | This command reconciles planning artifacts only. Existing design-stage task/test IDs are mapped now; implementation remains blocked until `tasks.md` is reconciled from the updated design. |
-| Domain integrity and role separation | PASS | Employee ownership, normal reporting scope, administrator authority, self-approval denial, state transitions, reservations, and cancellation cutoffs are explicit design constraints. |
-| Security, quality, and verified workflows | PASS | Session security, CSRF, layered authorization, transaction tests, PostgreSQL integration tests, frontend tests, and end-to-end acceptance coverage are planned. |
+| Spec Kit artifacts are authoritative | PASS | The plan traces to the approved `spec.md`, its 2026-08-19 clarification session, and the focused employee-account/role contract decision; no business policy is replaced by a technical default. |
+| Traceable, task-gated delivery | PASS | This command reconciles planning artifacts only. Existing task/test IDs remain stable, affected task wording is reconciled, and implementation remains gated on the final `$speckit-analyze`. |
+| Domain integrity and role separation | PASS | Closed non-empty role assignment, employee ownership, normal reporting scope, administrator authority, self-approval denial, state transitions, reservations, and cancellation cutoffs are explicit design constraints. |
+| Security, quality, and verified workflows | PASS | Atomic password-backed account provisioning, input-only credential hashing, session security, CSRF, layered authorization, explicit error contracts, transaction tests, PostgreSQL integration tests, frontend tests, and end-to-end acceptance coverage are planned. |
 | Simplicity and deliberate change | PASS | One backend service and one frontend are used; Flyway versioned migrations govern every persistent schema change. |
 
 No constitution violation or unjustified complexity is present.
@@ -101,6 +101,8 @@ An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command ha
 - The session cookie is `HttpOnly`, `Secure` outside local HTTP development, and `SameSite=Lax`. Successful login rotates the session identifier; logout invalidates it and clears the cookie.
 - Keep CSRF enabled. The SPA obtains a CSRF token and sends it in a header for unsafe methods. Production uses one origin; the development server proxies `/api` to avoid broad credentialed CORS.
 - Passwords use Spring Security's delegating password encoder. Authentication failures return generic messages; unauthenticated and forbidden API requests return consistent `401` and `403` problem responses.
+- Administrator employee creation provisions the employee profile and its password-backed user account in one transaction. `initialPassword` is required only on that creation command, is hashed before persistence, and is never serialized in an employee, user, principal, or audit response. The MVP adds no reset, invitation, SSO, magic-link, or first-login password-change workflow.
+- Every account has one or more unique roles drawn only from `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`. Create/update DTOs and employee/principal response DTOs use the same closed role enum and non-empty, duplicate-free array constraints.
 - Endpoint role checks are supplemented by repository/application-service predicates. Employee-private queries require `request.employee_id = actor.employee_id`; manager queries require `request.employee.manager_id = actor.employee_id`; decisions repeat that predicate after locking and require `request.employee_id != actor.employee_id`; administrator endpoints require `ADMINISTRATOR` and use no manager impersonation path.
 - The employee team-calendar query returns only `PENDING`/`APPROVED` entries owned by active employees where `(entry.employee_id = actor.employee_id) OR (actor.manager_id IS NOT NULL AND entry.employee.manager_id = actor.manager_id)`. Its dedicated projection contains only employee display name, start date, end date, and status—never reason, balance, duration mode, leave type, comments, history, identifiers, or audit data.
 
@@ -110,6 +112,7 @@ An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command ha
 - Use `/api` as the base path, JSON payloads, ISO-8601 dates/timestamps, decimal day quantities externally, and integer half-day units internally.
 - List endpoints use bounded page parameters and stable sorting. Validation, authorization, conflict, and business-rule failures use a shared problem response with a machine-readable code and field errors.
 - Every concurrency-sensitive update DTO requires `expectedVersion`. Missing tokens fail request validation with `400 VALIDATION_FAILED`; mismatches return `409 STALE_VERSION` with the current value undisclosed. Correction DTOs expose only the closed actions `CANCEL_PENDING`, `CANCEL_APPROVED`, and `REOPEN_REJECTED`; the service validates each action's exact source status after locking.
+- Each protected operation explicitly documents applicable `400`, `401`, `403`, `404`, and `409` problem responses. Response entries follow actual validation, authentication, role/scope, hidden-resource, and established conflict behavior rather than mechanically advertising impossible outcomes.
 - State-changing operations support an `Idempotency-Key` header where duplicate browser submission is plausible. Database uniqueness on the actor and key prevents duplicate leave requests or balance movements.
 
 ### Migration and data lifecycle
@@ -131,7 +134,7 @@ An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command ha
 - **Domain unit tests**: duration calculation, configured weekly offs and holidays, AM/PM rules, policy versions, cutoff boundaries, the exact ordinary/administrative transition matrix, mandatory tracked-balance reservation, and balance invariants.
 - **Repository/migration tests**: migrations from empty database, foreign/check/unique constraints, active occupancy conflicts, immutable history expectations, query indexes, and pessimistic locks using PostgreSQL Testcontainers.
 - **Transactional integration tests**: simultaneous submissions against one balance, exactly-once reservation conversion/release/restoration/re-reservation, manager rejection ledger and availability restoration, all three permitted corrections and all forbidden corrections, rollback when occupancy/ledger/audit/history insertion fails, required stale-version rejection, deterministic multi-period locking, and holiday soft-deactivation retention.
-- **Security/API tests**: login/logout/me/CSRF; `401` and `403`; employee ownership; manager direct-report scope; manager self-approval denial; administrator-only configuration, adjustment, reports, and corrections; error contract and pagination.
+- **Security/API tests**: login/logout/me/CSRF; administrator employee/account provisioning with required input-only password hashing; closed non-empty duplicate-free role arrays; `401` and `403`; employee ownership; manager direct-report scope; manager self-approval denial; administrator-only configuration, adjustment, reports, and corrections; operation-specific `400`/`401`/`403`/`404`/`409` error contracts and pagination.
 - **Frontend tests**: role routes and navigation, dashboard states, calculation preview, submission validation/conflicts, history, cancellation cutoff messaging, manager decision/comment behavior, administrator forms, API/session errors, keyboard behavior, and responsive variants.
 - **End-to-end smoke**: employee login and submit, manager login and approve/reject, employee status/balance update, eligible cancellation restoration, and audit visibility for an administrator.
 
@@ -205,10 +208,10 @@ README.md
 
 | Principle | Result | Design evidence |
 |---|---|---|
-| Authoritative artifacts | PASS | Data model and contracts implement mandatory tracked-balance reservation, the sole allocation mechanism, privacy-safe same-manager calendars, exact correction transitions, holiday soft deactivation, required stale-write tokens, and audit rules without adding HRMS scope. |
-| Traceable delivery | PASS | `contracts/traceability.md` maps requirements and outcomes to known task/test IDs now; implementation awaits `$speckit-tasks` reconciliation. |
-| Domain integrity and role separation | PASS | Explicit ownership, direct-report, same-manager-calendar, administrator, and self-approval predicates combine with active occupancy constraints, balance movements, and immutable state history. |
-| Security, quality, verified workflows | PASS | Authentication, CSRF, transaction rollback, concurrency, migration, authorization, frontend, and end-to-end tests are explicitly defined. |
+| Authoritative artifacts | PASS | Data model and contracts implement atomic password-backed employee/account provisioning, closed non-empty roles, credential-safe DTOs, explicit operation error responses, mandatory tracked-balance reservation, the sole allocation mechanism, privacy-safe same-manager calendars, exact correction transitions, holiday soft deactivation, required stale-write tokens, and audit rules without adding HRMS scope. |
+| Traceable delivery | PASS | `contracts/traceability.md` maps requirements and outcomes to stable task/test IDs, and directly affected task wording is reconciled without renumbering. |
+| Domain integrity and role separation | PASS | Explicit non-empty closed role assignments, ownership, direct-report, same-manager-calendar, administrator, and self-approval predicates combine with active occupancy constraints, balance movements, and immutable state history. |
+| Security, quality, verified workflows | PASS | Password-backed account provisioning, input-only credential handling, authentication, CSRF, explicit API error contracts, transaction rollback, concurrency, migration, authorization, frontend, and end-to-end tests are explicitly defined. |
 | Simplicity and deliberate change | PASS | One backend service, one database, one frontend, forward-only migrations, and no distributed workflow are introduced. |
 
 No complexity exception is required.

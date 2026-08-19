@@ -53,7 +53,7 @@ Authentication identity independent of employee profile lifecycle.
 | `id` | UUID | Primary key |
 | `login` | varchar(254) | Display form; nonblank |
 | `normalized_login` | varchar(254) | Lowercased/normalized; unique |
-| `password_hash` | varchar(255) | Required; never returned or audited |
+| `password_hash` | varchar(255) | Required; derived from the administrator-supplied creation password before persistence; never returned or audited |
 | `enabled` | boolean | Disabled accounts cannot authenticate |
 | `credentials_updated_at` | timestamptz | Required |
 | `created_at`, `updated_at` | timestamptz | Required |
@@ -61,7 +61,9 @@ Authentication identity independent of employee profile lifecycle.
 
 ### Role and UserAccountRole
 
-`Role` contains the fixed authorization codes `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`. `UserAccountRole` is a unique pair of account and role, allowing legitimate multi-role users.
+`Role` contains exactly the fixed authorization codes `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`. `UserAccountRole` is a unique pair of account and role, allowing legitimate multi-role users. Every user account must have at least one role; create and update validation reject empty or duplicate role arrays and any value outside the fixed set.
+
+An administrator creates an `EmployeeProfile` and its password-backed `UserAccount` together in one transaction. The required `initialPassword` exists only in the employee-creation transport command, is hashed before `UserAccount` persistence, and is never an entity field or response/audit property. No password-reset, invitation, SSO, magic-link, or first-login-password-change entity or workflow exists in the MVP.
 
 ### EmployeeProfile
 

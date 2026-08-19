@@ -13,13 +13,15 @@ This contract complements `openapi.yaml`. UI route guards are convenience only; 
 | View manager queue/request details | No | Yes | No through manager API | Request employee's `manager_id` equals actor's employee ID |
 | Approve/reject request | No | Yes | No through manager API | Direct report only; actor employee ID must differ from request employee ID |
 | View manager team calendar | No | Yes | No through manager API | Direct reports only |
-| Manage employees/reporting | No | No | Yes | Administrator role |
+| Manage employees/reporting | No | No | Yes | Administrator role; creation provisions the employee and password-backed account together |
 | Manage leave types/policies/holidays | No | No | Yes | Administrator role |
 | Adjust balances | No | No | Yes | Nonblank reason required |
 | View organization requests/reports/audit | No | No | Yes | Administrator role |
 | Make exceptional correction | No | No | Yes | Nonblank reason and complete audit required |
 
 A user may hold multiple roles. Each call is authorized for the selected endpoint and target resource; holding `MANAGER` never expands employee ownership, and holding `ADMINISTRATOR` does not make the manager API a bypass.
+
+Every user account has at least one unique role, and the only role codes are `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`. Employee create/update commands and employee/principal responses use this same closed, non-empty, duplicate-free role collection.
 
 ## Authentication behavior
 
@@ -28,6 +30,7 @@ A user may hold multiple roles. Each call is authorized for the selected endpoin
 - The browser sends the session cookie automatically and echoes the CSRF token through `X-XSRF-TOKEN` on unsafe requests.
 - `POST /api/auth/logout` invalidates the server session and clears the session cookie.
 - Missing/expired authentication returns `401 AUTHENTICATION_REQUIRED`; an authenticated but unauthorized call returns `403 ACCESS_DENIED` without revealing the target resource.
+- `POST /api/admin/employees` requires `initialPassword` and creates the employee plus associated password-backed account atomically. The password is hashed before persistence and is input-only: it never appears in employee, principal, audit, or other response data. No reset, invitation, SSO, magic-link, or first-login-change flow is part of the MVP.
 
 ## Service authorization invariants
 
@@ -66,3 +69,5 @@ A user may hold multiple roles. Each call is authorized for the selected endpoin
 | 422 | `REJECTION_COMMENT_REQUIRED` | Configured policy requires a comment |
 
 Every problem response includes a correlation identifier. Messages are user-safe and field errors do not expose inaccessible employee/request data.
+
+Each OpenAPI operation documents the problem responses that can arise from its actual validation and authorization path: malformed or validation-invalid input uses `400`, absent authentication uses `401`, authenticated role/scope denial uses `403`, absent or deliberately hidden addressable resources use `404`, and established stale/business conflicts use `409`. Required version commands retain `400 VALIDATION_FAILED` for a missing token and `409 STALE_VERSION` with zero mutation for a mismatch.

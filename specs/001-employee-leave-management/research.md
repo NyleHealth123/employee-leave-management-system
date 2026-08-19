@@ -26,12 +26,15 @@
 
 **Decision**: Use Spring Security server-side session authentication only. Expose JSON login, logout, current-principal, and CSRF bootstrap endpoints. Keep the session identifier in an `HttpOnly` cookie and keep CSRF protection enabled.
 
+Administrator employee creation provisions the employee profile and its password-backed user account together. The creation command requires an input-only `initialPassword`; the service hashes it before persistence, and no plaintext password is stored, audited, or returned. Every account has at least one unique role from the closed `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR` set. The MVP does not add password reset, invitations, SSO, magic links, or first-login password changes.
+
 **Rationale**: One browser SPA and one backend do not need portable bearer tokens. A server session gives immediate logout/revocation, session-fixation protection, and less custom credential lifecycle code. Same-origin production hosting and a development proxy keep cookie and CSRF behavior straightforward.
 
 **Alternatives considered**:
 
 - JWT access/refresh tokens were rejected because they require secure browser storage, rotation, revocation, and refresh handling without an integration requirement.
 - Supporting both sessions and JWT was rejected as duplicate authentication surface.
+- Deferred or out-of-band account activation workflows were rejected because the approved MVP requires only direct administrator provisioning and does not specify reset, invitation, SSO, magic-link, or first-login-change behavior.
 
 ## Decision 4: Layered authorization
 
