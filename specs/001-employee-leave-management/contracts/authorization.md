@@ -9,7 +9,7 @@ This contract complements `openapi.yaml`. UI route guards are convenience only; 
 | Sign in, sign out, view own principal | Yes | Yes | Yes | Authenticated account must be enabled |
 | View own dashboard, balances, requests, history | Yes | Yes | Yes | Always resolved from authenticated employee; client-supplied employee IDs are ignored |
 | Preview, submit, cancel own leave | Yes | Yes | Yes | Actor owns request; cancellation status/cutoff applies |
-| View basic employee team calendar | Yes | Yes | Yes | Only privacy-safe calendar fields exposed |
+| View basic employee team calendar | Yes | Yes | Yes | Own entries may appear; coworker must be active and share viewer's direct manager; pending/approved only; exact field allowlist below |
 | View manager queue/request details | No | Yes | No through manager API | Request employee's `manager_id` equals actor's employee ID |
 | Approve/reject request | No | Yes | No through manager API | Direct report only; actor employee ID must differ from request employee ID |
 | View manager team calendar | No | Yes | No through manager API | Direct reports only |
@@ -31,13 +31,21 @@ A user may hold multiple roles. Each call is authorized for the selected endpoin
 
 ## Service authorization invariants
 
-1. Employee resources derive owner identity from the authenticated principal rather than a request parameter.
-2. Manager list queries include `employee.manager_id = actor.employee_id` in the repository predicate.
-3. Manager detail and decision commands repeat the direct-report check after locking the request.
-4. A manager decision also requires `request.employee_id != actor.employee_id`; no role combination or endpoint permits manager self-approval.
+1. Employee request/history predicates require `request.employee_id = actor.employee_id`; employee balance predicates require `balance.employee_id = actor.employee_id`. Employee endpoints derive the actor identifier from the principal and never trust a client-supplied employee ID.
+2. Employee team-calendar repositories require `request.status IN (PENDING, APPROVED)` and select rows satisfying `(request.employee_id = viewer.employee_id) OR (viewer.manager_id IS NOT NULL AND request.employee.active = true AND request.employee.manager_id = viewer.manager_id)`. The dedicated projection selects only `employee.display_name`, `request.start_date`, `request.end_date`, and `request.status`. It must not load or serialize leave reason/type/balance, duration mode, decision comments, identifiers, status/audit history, or a general request DTO.
+3. Manager list, detail, and manager-calendar queries accept the actor employee ID and include `request.employee.manager_id = actor.employee_id` in the repository predicate. Manager detail and decision commands repeat this direct-report check after locking the request.
+4. Every manager decision requires the `MANAGER` role and `request.employee_id != actor.employee_id`. Self-approval is never permitted; rejection is also limited to a direct report and cannot use a manager endpoint as a self-service path.
 5. There is no delegation or exceptional manager grant entity in the MVP.
-6. Administrator exceptional corrections use dedicated endpoints and action codes; they do not impersonate a manager or rewrite prior audit/history rows.
-7. Authorization failures produce no request, balance, history, or audit mutation.
+6. Every employee/reporting, policy/type, holiday, balance, organization-report, audit-query, or correction service entry requires `ADMINISTRATOR`. An administrator role does not make manager endpoints a bypass; administrator corrections use dedicated actions and never impersonate a manager or rewrite prior audit/history rows.
+7. After locking the request, correction authorization validates exactly one action/current-state pair: `CANCEL_PENDING` with `PENDING`, `CANCEL_APPROVED` with `APPROVED`, or `REOPEN_REJECTED` with `REJECTED`. Same-status and every other pair is rejected.
+8. Repository scope predicates prevent unscoped loads where practical, and application services repeat authorization before mutation. Authorization failures produce no request, balance, ledger, occupancy, history, or audit mutation.
+
+## Version and stale-write behavior
+
+- Manager approval/rejection, employee cancellation, administrator correction, employee/reporting updates, leave-type updates, policy-version creation against its parent leave type, holiday updates/deactivation, and balance adjustment require `expectedVersion` in the JSON command body.
+- Missing `expectedVersion` is `400 VALIDATION_FAILED`. After authorization, a mismatch is `409 STALE_VERSION`; the response does not reveal the current version or protected resource state.
+- A stale command performs no request, balance, ledger, occupancy, history, audit, or master-data mutation. A successful update increments the guarded aggregate version.
+- Leave submission and creation of a new employee, leave type, holiday, or balance period have no pre-existing target version; they use current server validation, database constraints, locks where applicable, and idempotency.
 
 ## Business error codes
 
@@ -51,7 +59,7 @@ A user may hold multiple roles. Each call is authorized for the selected endpoin
 | 409 | `LEAVE_OVERLAP` | Active AM/PM occupancy conflicts |
 | 409 | `INSUFFICIENT_BALANCE` | Required units cannot be reserved |
 | 409 | `INVALID_STATUS_TRANSITION` | Current request state does not permit command |
-| 409 | `STALE_REQUEST` | Request changed since the client loaded it |
+| 409 | `STALE_VERSION` | A request or other mutable aggregate changed since the client loaded it; no mutation occurred |
 | 409 | `POLICY_CHANGED` | Revalidation changes material eligibility/duration |
 | 422 | `CANCELLATION_CUTOFF_PASSED` | Employee self-cancellation is no longer permitted |
 | 422 | `NO_CHARGEABLE_DAYS` | Configured rules exclude every requested date |

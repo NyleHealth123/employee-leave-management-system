@@ -191,6 +191,7 @@ paths:
         - $ref: '#/components/parameters/CsrfHeader'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
+        required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CommentCommand' }
@@ -211,12 +212,12 @@ paths:
         - $ref: '#/components/parameters/ToDate'
       responses:
         '200':
-          description: Privacy-safe basic team leave calendar
+          description: Pending/approved own entries and entries for active employees sharing the viewer's direct manager; privacy-safe fields only
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/CalendarEntry' }
+                items: { $ref: '#/components/schemas/EmployeeTeamCalendarEntry' }
 
   /manager/leave-requests:
     get:
@@ -255,6 +256,7 @@ paths:
         - $ref: '#/components/parameters/CsrfHeader'
         - $ref: '#/components/parameters/IdempotencyKey'
       requestBody:
+        required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/DecisionCommand' }
@@ -302,7 +304,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/CalendarEntry' }
+                items: { $ref: '#/components/schemas/ManagerCalendarEntry' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
   /admin/employees:
@@ -328,7 +330,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/EmployeeCommand' }
+            schema: { $ref: '#/components/schemas/EmployeeCreateCommand' }
       responses:
         '201':
           description: Employee created
@@ -347,7 +349,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/EmployeeCommand' }
+            schema: { $ref: '#/components/schemas/EmployeeUpdateCommand' }
       responses:
         '200':
           description: Employee/reporting relationship updated or deactivated
@@ -355,6 +357,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Employee' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/leave-types:
     get:
       tags: [Administration]
@@ -376,7 +379,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LeaveTypeCommand' }
+            schema: { $ref: '#/components/schemas/LeaveTypeCreateCommand' }
       responses:
         '201':
           description: Leave type created
@@ -394,13 +397,14 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/LeaveTypeCommand' }
+            schema: { $ref: '#/components/schemas/LeaveTypeUpdateCommand' }
       responses:
         '200':
           description: Leave type metadata updated or deactivated
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveTypeDetail' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/leave-types/{leaveTypeId}/policies:
     post:
       tags: [Administration]
@@ -444,7 +448,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/HolidayCommand' }
+            schema: { $ref: '#/components/schemas/HolidayCreateCommand' }
       responses:
         '201':
           description: Holiday created
@@ -462,13 +466,14 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/HolidayCommand' }
+            schema: { $ref: '#/components/schemas/HolidayUpdateCommand' }
       responses:
         '200':
-          description: Holiday updated or deactivated
+          description: Holiday updated or soft-deactivated; historical leave and audit data are retained
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Holiday' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /admin/employees/{employeeId}/leave-balances:
     get:
       tags: [Administration]
@@ -497,7 +502,7 @@ paths:
             schema: { $ref: '#/components/schemas/BalanceAllocationCommand' }
       responses:
         '201':
-          description: Employee leave balance period and starting allowance created
+          description: Employee leave balance period and starting allocation created (the sole MVP allowance mechanism)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveBalance' }
@@ -554,7 +559,7 @@ paths:
             schema: { $ref: '#/components/schemas/CorrectionCommand' }
       responses:
         '200':
-          description: Exceptional correction and compensating balance movement recorded
+          description: One permitted correction action and its balance, occupancy, immutable history, and audit effects recorded atomically
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LeaveRequestDetail' }
@@ -730,7 +735,7 @@ components:
         reason: { type: string, minLength: 1, maxLength: 1000 }
     LeaveCalculation:
       type: object
-      required: [chargeableDays, chargeableDates, balanceValidationRequired, canSubmit]
+      required: [chargeableDays, chargeableDates, tracksBalance, canSubmit]
       properties:
         chargeableDays: { type: number, multipleOf: 0.5, minimum: 0.5 }
         chargeableDates:
@@ -739,7 +744,7 @@ components:
         excludedDates:
           type: array
           items: { $ref: '#/components/schemas/ExcludedDate' }
-        balanceValidationRequired: { type: boolean }
+        tracksBalance: { type: boolean, description: When true, submission must validate and reserve sufficient available balance }
         availableDays: { type: number, multipleOf: 0.5 }
         canSubmit: { type: boolean }
         messages:
@@ -753,14 +758,13 @@ components:
         reason: { type: string, enum: [WEEKLY_OFF, HOLIDAY] }
     LeaveTypeSummary:
       type: object
-      required: [id, code, name, allowsHalfDay, balanceValidationRequired, cancellationCutoffDays]
+      required: [id, code, name, tracksBalance, allowsHalfDay, cancellationCutoffDays]
       properties:
         id: { type: string, format: uuid }
         code: { type: string }
         name: { type: string }
         allowsHalfDay: { type: boolean }
         tracksBalance: { type: boolean }
-        balanceValidationRequired: { type: boolean }
         cancellationCutoffDays: { type: integer, minimum: 0 }
     LeaveBalance:
       type: object
@@ -847,30 +851,42 @@ components:
         upcomingHolidays:
           type: array
           items: { $ref: '#/components/schemas/Holiday' }
-    CalendarEntry:
+    EmployeeTeamCalendarEntry:
       type: object
+      additionalProperties: false
+      description: Exact privacy-safe projection for the employee team calendar
+      required: [employeeDisplayName, startDate, endDate, status]
+      properties:
+        employeeDisplayName: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status: { type: string, enum: [PENDING, APPROVED] }
+    ManagerCalendarEntry:
+      type: object
+      additionalProperties: false
       required: [employeeDisplayName, startDate, endDate, durationMode, status]
       properties:
         employeeDisplayName: { type: string }
         startDate: { type: string, format: date }
         endDate: { type: string, format: date }
         durationMode: { $ref: '#/components/schemas/DurationMode' }
-        status: { $ref: '#/components/schemas/LeaveStatus' }
+        status: { type: string, enum: [PENDING, APPROVED] }
         leaveTypeName: { type: string }
     CommentCommand:
       type: object
       additionalProperties: false
+      required: [expectedVersion]
       properties:
         comment: { type: string, maxLength: 1000 }
-        expectedVersion: { type: integer, format: int64 }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
     DecisionCommand:
       type: object
       additionalProperties: false
       required: [expectedVersion]
       properties:
         comment: { type: string, maxLength: 1000 }
-        expectedVersion: { type: integer, format: int64 }
-    EmployeeCommand:
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
+    EmployeeCreateCommand:
       type: object
       additionalProperties: false
       required: [employeeNumber, displayName, email, login, roles, active]
@@ -885,7 +901,21 @@ components:
           type: array
           items: { type: string, enum: [EMPLOYEE, MANAGER, ADMINISTRATOR] }
         active: { type: boolean }
-        expectedVersion: { type: integer, format: int64 }
+    EmployeeUpdateCommand:
+      type: object
+      additionalProperties: false
+      required: [employeeNumber, displayName, email, login, roles, active, expectedVersion]
+      properties:
+        employeeNumber: { type: string, minLength: 1, maxLength: 64 }
+        displayName: { type: string, minLength: 1, maxLength: 160 }
+        email: { type: string, format: email, maxLength: 254 }
+        login: { type: string, minLength: 1, maxLength: 254 }
+        managerId: { type: [string, 'null'], format: uuid }
+        roles:
+          type: array
+          items: { type: string, enum: [EMPLOYEE, MANAGER, ADMINISTRATOR] }
+        active: { type: boolean }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
     Employee:
       type: object
       required: [id, employeeNumber, displayName, email, roles, active, version]
@@ -912,7 +942,7 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
-    LeaveTypeCommand:
+    LeaveTypeCreateCommand:
       type: object
       additionalProperties: false
       required: [code, name, active]
@@ -921,16 +951,24 @@ components:
         name: { type: string, minLength: 1, maxLength: 120 }
         description: { type: string, maxLength: 500 }
         active: { type: boolean }
-        expectedVersion: { type: integer, format: int64 }
+    LeaveTypeUpdateCommand:
+      type: object
+      additionalProperties: false
+      required: [code, name, active, expectedVersion]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 40 }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 500 }
+        active: { type: boolean }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
     LeavePolicyCommand:
       type: object
       additionalProperties: false
-      required: [effectiveFrom, tracksBalance, balanceValidationRequired, allowsHalfDay, weeklyOffTreatment, holidayTreatment, rejectionCommentRequired, cancellationCutoffDays, weeklyOffDays]
+      required: [effectiveFrom, tracksBalance, allowsHalfDay, weeklyOffTreatment, holidayTreatment, rejectionCommentRequired, cancellationCutoffDays, weeklyOffDays, expectedVersion]
       properties:
         effectiveFrom: { type: string, format: date }
         effectiveTo: { type: [string, 'null'], format: date }
-        tracksBalance: { type: boolean }
-        balanceValidationRequired: { type: boolean }
+        tracksBalance: { type: boolean, description: When true, validation and reservation are mandatory; no separate allowance-basis or validation mode exists }
         allowsHalfDay: { type: boolean }
         weeklyOffTreatment: { type: string, enum: [EXCLUDE, INCLUDE] }
         holidayTreatment: { type: string, enum: [EXCLUDE, INCLUDE] }
@@ -940,14 +978,25 @@ components:
           type: array
           uniqueItems: true
           items: { type: integer, minimum: 1, maximum: 7 }
+        expectedVersion: { type: integer, format: int64, minimum: 0, description: Expected version of the parent leave type }
     LeavePolicy:
-      allOf:
-        - $ref: '#/components/schemas/LeavePolicyCommand'
-        - type: object
-          required: [id, versionNumber]
-          properties:
-            id: { type: string, format: uuid }
-            versionNumber: { type: integer, minimum: 1 }
+      type: object
+      required: [id, versionNumber, effectiveFrom, tracksBalance, allowsHalfDay, weeklyOffTreatment, holidayTreatment, rejectionCommentRequired, cancellationCutoffDays, weeklyOffDays]
+      properties:
+        id: { type: string, format: uuid }
+        versionNumber: { type: integer, minimum: 1 }
+        effectiveFrom: { type: string, format: date }
+        effectiveTo: { type: [string, 'null'], format: date }
+        tracksBalance: { type: boolean }
+        allowsHalfDay: { type: boolean }
+        weeklyOffTreatment: { type: string, enum: [EXCLUDE, INCLUDE] }
+        holidayTreatment: { type: string, enum: [EXCLUDE, INCLUDE] }
+        rejectionCommentRequired: { type: boolean }
+        cancellationCutoffDays: { type: integer, minimum: 0 }
+        weeklyOffDays:
+          type: array
+          uniqueItems: true
+          items: { type: integer, minimum: 1, maximum: 7 }
     LeaveTypeDetail:
       allOf:
         - $ref: '#/components/schemas/LeaveTypeSummary'
@@ -957,7 +1006,7 @@ components:
             active: { type: boolean }
             currentPolicy: { $ref: '#/components/schemas/LeavePolicy' }
             version: { type: integer, format: int64 }
-    HolidayCommand:
+    HolidayCreateCommand:
       type: object
       additionalProperties: false
       required: [date, name, active]
@@ -965,15 +1014,24 @@ components:
         date: { type: string, format: date }
         name: { type: string, minLength: 1, maxLength: 160 }
         active: { type: boolean }
-        expectedVersion: { type: integer, format: int64 }
+    HolidayUpdateCommand:
+      type: object
+      additionalProperties: false
+      required: [date, name, active, expectedVersion]
+      properties:
+        date: { type: string, format: date }
+        name: { type: string, minLength: 1, maxLength: 160 }
+        active: { type: boolean }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
     Holiday:
-      allOf:
-        - $ref: '#/components/schemas/HolidayCommand'
-        - type: object
-          required: [id, version]
-          properties:
-            id: { type: string, format: uuid }
-            version: { type: integer, format: int64 }
+      type: object
+      required: [id, date, name, active, version]
+      properties:
+        id: { type: string, format: uuid }
+        date: { type: string, format: date }
+        name: { type: string }
+        active: { type: boolean }
+        version: { type: integer, format: int64, minimum: 0 }
     BalanceAdjustmentCommand:
       type: object
       additionalProperties: false
@@ -981,7 +1039,7 @@ components:
       properties:
         adjustmentDays: { type: number, multipleOf: 0.5, not: { const: 0 } }
         reason: { type: string, minLength: 1, maxLength: 1000 }
-        expectedVersion: { type: integer, format: int64 }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
     BalanceAllocationCommand:
       type: object
       additionalProperties: false
@@ -995,11 +1053,14 @@ components:
     CorrectionCommand:
       type: object
       additionalProperties: false
-      required: [targetStatus, reason, expectedVersion]
+      required: [action, reason, expectedVersion]
       properties:
-        targetStatus: { $ref: '#/components/schemas/LeaveStatus' }
+        action:
+          type: string
+          enum: [CANCEL_PENDING, CANCEL_APPROVED, REOPEN_REJECTED]
+          description: Closed action encodes the only allowed source-to-target correction pair; the server verifies current status after locking
         reason: { type: string, minLength: 1, maxLength: 1000 }
-        expectedVersion: { type: integer, format: int64 }
+        expectedVersion: { type: integer, format: int64, minimum: 0 }
     LeaveSummaryReport:
       type: object
       required: [from, to, byStatus, byLeaveType]
@@ -1049,7 +1110,7 @@ components:
       required: [field, code, message]
       properties:
         field: { type: string }
-        code: { type: string }
+        code: { type: string, description: Stable code such as STALE_VERSION, LEAVE_OVERLAP, INSUFFICIENT_BALANCE, or INVALID_STATUS_TRANSITION }
         message: { type: string }
     Problem:
       type: object

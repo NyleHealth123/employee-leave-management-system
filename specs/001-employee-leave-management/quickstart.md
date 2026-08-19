@@ -108,6 +108,7 @@ Expected result: all protected access is authenticated, role-scoped, and CSRF-pr
 2. Preview a full-day range containing both exclusions and verify chargeable dates/days.
 3. Preview AM and PM half-day requests and verify each returns `0.5` day.
 4. Submit the valid request and verify status `PENDING`, active occupancy slots, reserved balance, status history, and an audit event.
+5. For every `tracksBalance=true` type, verify the API offers no switch that disables validation/reservation and that insufficient unreserved balance rejects the complete submission.
 
 Expected result: preview and submit use the same server calculation, and submission never trusts a client-supplied total.
 
@@ -125,28 +126,43 @@ Expected result: only requests that can atomically acquire unique occupancy slot
 3. Try the same operation as an unrelated manager and verify denial without mutation.
 4. Create a manager's own request and verify that manager cannot approve it even if they hold other non-administrator roles.
 5. Reject another pending request with and without the policy-required comment.
+6. Before the successful rejection, record allocated, reserved, consumed, and available units plus the request version. Reject using that `expectedVersion`, then verify the reservation line changes `RESERVED -> RELEASED`, reserved units decrease by exactly the request units, available units increase by exactly those units, and allocated/consumed units do not change.
+7. Verify exactly one `RELEASE_RESERVED` ledger movement, inactive calendar occupancy, a `PENDING -> REJECTED` status-history row, and an immutable rejection audit event while the original submission history remains intact.
+8. Retry with the stale pre-rejection version and verify `409 STALE_VERSION` with no extra movement, occupancy, history, audit, or balance change.
 
-Expected result: only the direct manager can decide, self-approval is always blocked, and comment policy is enforced.
+Expected result: only the direct manager can decide, self-approval is always blocked, comment policy is enforced, and rejection atomically releases the pending reservation and restores availability with matching immutable ledger/audit evidence.
 
 ### 5. Cancellation and restoration
 
 1. Cancel a pending request and verify reserved units are released once.
 2. Cancel approved future leave before its configured cutoff and verify consumed units are restored once.
 3. Attempt cancellation exactly at and after the organization-time-zone cutoff.
+4. Omit `expectedVersion`, then use a stale version, and verify `400 VALIDATION_FAILED` and `409 STALE_VERSION` respectively with no mutation.
 
 Expected result: permitted cancellation is fully atomic and late self-cancellation returns `422 CANCELLATION_CUTOFF_PASSED` without changing balance or audit state.
 
 ### 6. Administration and audit
 
 1. Create/update an employee and manager relationship and verify it immediately controls manager scope.
-2. Create an effective-dated leave policy and holiday and verify new calculations use them.
+2. Create an effective-dated leave policy and holiday and verify new calculations use them. Soft-deactivate the holiday with its required `expectedVersion`; verify new/recalculated requests ignore it while historical request snapshots, status history, and audit records remain unchanged.
 3. Adjust a balance with a reason and verify summary, immutable movement, and audit event.
-4. Perform an exceptional correction with a reason and verify compensating movement/status history rather than rewriting prior history.
-5. View organization requests and a leave summary filtered by period.
+4. Perform each allowed correction with a reason and current `expectedVersion`: `PENDING -> CANCELLED` releases reserved balance and deactivates occupancy; `APPROVED -> CANCELLED` restores consumed balance and deactivates occupancy; `REJECTED -> PENDING` revalidates current policy/dates/duration/overlap/available balance, re-reserves tracked balance, and restores pending occupancy. Verify immutable ledger/status/audit additions rather than rewriting prior history.
+5. Attempt same-status correction plus `CANCELLED -> APPROVED`, `REJECTED -> APPROVED`, `APPROVED -> PENDING`, and `CANCELLED -> PENDING`; verify `409 INVALID_STATUS_TRANSITION` and no request, balance, ledger, occupancy, history, or audit mutation.
+6. Repeat employee/reporting, leave-type, policy-version, holiday, correction, and balance-adjustment updates with stale `expectedVersion` values and verify `409 STALE_VERSION` without mutation.
+7. View organization requests and a leave summary filtered by period.
 
 Expected result: configuration is data-driven, corrections are administrator-only, and every material action is traceable.
 
-### 7. Transaction rollback
+### 7. Employee team-calendar privacy
+
+1. Create the viewer, an active coworker with the same direct manager, an inactive coworker with that manager, an active employee under a different manager, and a viewer with no manager. Give each pending/approved and terminal requests as applicable.
+2. Query the employee team calendar as the first viewer and verify it includes only their own qualifying entries plus pending/approved entries for the active same-manager coworker.
+3. Verify inactive employees, different-manager employees, and rejected/cancelled entries are absent. Verify a viewer without a manager receives only their own qualifying entries.
+4. Inspect every response object and verify its exact fields are `employeeDisplayName`, `startDate`, `endDate`, and `status`; confirm reason, balance, decision comment, leave type, duration mode, identifiers, status history, and audit history are absent.
+
+Expected result: employee calendar scope and field-level privacy satisfy FR-031 and SC-009 without reusing private request DTOs.
+
+### 8. Transaction rollback
 
 Use an integration-test failure injection to make required history/audit persistence fail during submission, approval, rejection, cancellation, and adjustment.
 

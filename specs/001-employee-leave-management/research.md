@@ -35,7 +35,7 @@
 
 ## Decision 4: Layered authorization
 
-**Decision**: Apply request-level role checks in Spring Security and mandatory application-service ownership/scope checks using the authenticated employee identity. Managers may query and decide only direct-report requests and can never approve their own request. Administrators alone perform exceptional corrections.
+**Decision**: Apply request-level role checks in Spring Security and mandatory repository/application-service ownership and scope predicates using the authenticated employee identity. Employee-private queries use `resource.employee_id = actor.employee_id`. Manager queries and decisions use `resource.employee.manager_id = actor.employee_id`; decisions repeat the predicate after locking and require the actor not to own the request. Employee team-calendar queries union the viewer's own pending/approved entries with entries for active employees sharing the viewer's non-null direct manager and return only display name, start/end dates, and status. Administrator operations require `ADMINISTRATOR` at service entry. Administrators alone perform the three specified exceptional corrections.
 
 **Rationale**: Route roles cannot express row-level reporting scope. Service checks keep authorization adjacent to state transitions and cover every controller or future caller. Repository queries are also scoped to avoid loading unrelated records unnecessarily.
 
@@ -68,18 +68,18 @@
 
 ## Decision 7: Balance periods, reservation ledger, and locking
 
-**Decision**: Store one balance row per employee, leave type, and policy period, plus request reservation/movement lines. Lock affected balance rows with pessimistic write locks in deterministic order for every reserve, approve, reject, cancel, adjustment, or correction transaction.
+**Decision**: Store one balance row per employee, leave type, and policy period, plus request reservation/movement lines. The FR-021 employee balance allocation is the sole MVP allowance mechanism. `tracks_balance=true` unconditionally requires sufficient-unreserved-balance validation and atomic reservation; no independent validation flag, allowance basis, or negative-balance mode exists. Lock affected balance rows with pessimistic write locks in deterministic order for every reserve, approve, reject, cancel, adjustment, or correction transaction.
 
 **Rationale**: A request may cross balance periods, so line items preserve exact allocation. Row locks serialize competing reservations and allow a deterministic insufficient-balance response. Approval moves reserved units to consumed units; rejection/cancellation releases or restores exactly the recorded units.
 
 **Alternatives considered**:
 
 - Optimistic locking alone was rejected as the primary approach because ordinary competing requests would surface retries instead of a direct domain result.
-- A single unpartitioned lifetime balance was rejected because policies and allowances commonly operate over periods.
+- A single unpartitioned lifetime balance was rejected because employee balance allocations and policy applicability operate over periods.
 
 ## Decision 8: Atomic workflow and audit model
 
-**Decision**: Place each business command in one Spring transaction that persists the request/status change, occupancy activity, balance movement, status history, and generic audit event together. Audit and status history are append-only.
+**Decision**: Place each business command in one Spring transaction that persists every applicable request/status change, balance summary and reservation line, immutable ledger movement, occupancy change, status history, and generic audit event together. Submission, approval, rejection, cancellation, each of the three permitted corrections, balance allocation, and balance adjustment use this boundary. Request/balance locks are acquired in deterministic order. Audit, ledger, occupancy, or history failure rolls back the entire command. Holiday removal is a version-checked soft deactivation and never deletes historical request or audit data.
 
 **Rationale**: The specification forbids status and balance drift and requires traceability. A separate audit transaction could allow the business change to commit without its required history.
 
@@ -90,7 +90,7 @@
 
 ## Decision 9: REST and error contracts
 
-**Decision**: Use resource-oriented JSON REST endpoints under `/api`, ISO-8601 dates, decimal day values externally, bounded pagination, request/response DTOs, and a shared problem-details error envelope with stable business codes.
+**Decision**: Use resource-oriented JSON REST endpoints under `/api`, ISO-8601 dates, decimal day values externally, bounded pagination, request/response DTOs, and a shared problem-details error envelope with stable business codes. Concurrency-sensitive update commands require an `expectedVersion` in the body. After authorization and locking where applicable, the service compares it to the aggregate version; a mismatch returns `409 STALE_VERSION` with no mutation and no current-version disclosure. Missing tokens return `400 VALIDATION_FAILED`. New-resource commands use constraints, server revalidation, locking where applicable, and idempotency instead of invented versions.
 
 **Rationale**: DTOs decouple the SPA from persistence. Stable error codes let the frontend present useful messages for overlap, insufficient balance, cutoff, stale state, and forbidden scope while preserving HTTP semantics.
 
@@ -98,8 +98,20 @@
 
 - Exposing persistence entities was rejected due to coupling and accidental data disclosure.
 - GraphQL was rejected because the requested REST boundaries are direct and sufficient.
+- Optional version tokens and silent last-write-wins updates were rejected because they cannot reliably distinguish a deliberate update from a stale browser write.
 
-## Decision 10: Frontend structure and tests
+## Decision 10: Closed administrative correction commands
+
+**Decision**: Model only `PENDING -> CANCELLED`, `APPROVED -> CANCELLED`, and `REJECTED -> PENDING`. The cancellation corrections release reserved or restore consumed balance and deactivate occupancy. Reopening a rejected request revalidates current policy, dates, duration, overlap, and balance, then reserves tracked balance and restores active pending occupancy. Every successful correction writes immutable ledger/status/audit records in the same transaction; same-status and all other pairs fail without mutation.
+
+**Rationale**: A closed command/transition model prevents transport DTOs and services from accepting arbitrary target states and makes compensating balance and occupancy effects testable.
+
+**Alternatives considered**:
+
+- A generic administrator-selected target status was rejected because it permits states and transitions explicitly forbidden by FR-035.
+- Rewriting the old ledger or history was rejected because it destroys auditability.
+
+## Decision 11: Frontend structure and tests
 
 **Decision**: Use feature-oriented React modules, nested role routes, a shared authenticated shell and accessible components. Use Vitest with React Testing Library/user-event and MSW for component/integration behavior, plus a small Playwright smoke suite.
 
@@ -110,7 +122,7 @@
 - A large global state framework was deferred because server-owned leave state and a small auth context do not establish the need.
 - Browser tests for every permutation were rejected in favor of fast domain/API tests plus a focused end-to-end path.
 
-## Decision 11: Local demonstration
+## Decision 12: Local demonstration
 
 **Decision**: Provide a root `compose.yaml` for PostgreSQL, Maven and npm wrapper/lockfile workflows, fixed development ports, a Vite `/api` proxy, and profile-scoped demo data configured only for local use.
 

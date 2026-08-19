@@ -14,7 +14,7 @@
 ## Requirement Completeness
 
 - [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous, except for the three documented policy ambiguities
+- [x] Requirements are testable and unambiguous; all prior policy ambiguities are resolved in the 2026-08-19 clarification session
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
 - [x] All acceptance scenarios are defined
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- Validation iteration 1: passed every quality item other than the intentionally retained clarification markers in Policy Ambiguities for Clarification (PA-001 through PA-003). Resolve these policy decisions before planning.
+- Validation iteration 2 (2026-08-19): passed after the latest clarifications resolved calendar privacy, mandatory tracked-balance reservation, the sole balance-allocation mechanism, exact administrative corrections, and holiday soft deactivation. No `NEEDS CLARIFICATION` marker remains.

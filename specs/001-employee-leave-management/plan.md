@@ -24,7 +24,7 @@ Build a responsive React and TypeScript single-page application backed by one Ja
 
 **Performance Goals**: For normal indexed operations at the agreed MVP load, 95% of interactive API requests complete within 500 ms and calendar/report queries within 2 seconds; the authenticated application shell becomes usable within 2 seconds on a typical broadband connection
 
-**Constraints**: Single organization; no microservices; session authentication only; CSRF protection enabled; manager scope and self-approval restrictions enforced in the service layer; state, balance, reservation, and audit changes are atomic; organization-specific rules remain data-driven
+**Constraints**: Single organization; no microservices; session authentication only; CSRF protection enabled; manager scope, employee ownership, employee team-calendar privacy, administrator scope, and self-approval restrictions enforced in repository/application services; `tracks_balance=true` always validates and reserves balance; state, balance, reservation, ledger, occupancy, history, and audit changes are atomic; required `expectedVersion` values protect concurrency-sensitive updates; organization-specific rules remain data-driven
 
 **Scale/Scope**: One-organization MVP with paginated organization and history queries. No business volume target is approved, so production capacity sizing is deferred; schema indexes, bounded page sizes, and database-backed concurrency controls avoid coupling correctness to a guessed user count.
 
@@ -34,10 +34,12 @@ Build a responsive React and TypeScript single-page application backed by one Ja
 
 ### Pre-design gate
 
+**Re-run after latest clarification**: 2026-08-19
+
 | Principle | Result | Planning evidence |
 |---|---|---|
 | Spec Kit artifacts are authoritative | PASS | The plan traces to `spec.md` and its 2026-08-19 clarification session; no business policy is replaced by a technical default. |
-| Traceable, task-gated delivery | PASS | This command creates planning artifacts only. Implementation remains blocked until `tasks.md` exists. |
+| Traceable, task-gated delivery | PASS | This command reconciles planning artifacts only. Existing design-stage task/test IDs are mapped now; implementation remains blocked until `tasks.md` is reconciled from the updated design. |
 | Domain integrity and role separation | PASS | Employee ownership, normal reporting scope, administrator authority, self-approval denial, state transitions, reservations, and cancellation cutoffs are explicit design constraints. |
 | Security, quality, and verified workflows | PASS | Session security, CSRF, layered authorization, transaction tests, PostgreSQL integration tests, frontend tests, and end-to-end acceptance coverage are planned. |
 | Simplicity and deliberate change | PASS | One backend service and one frontend are used; Flyway versioned migrations govern every persistent schema change. |
@@ -73,7 +75,25 @@ Each module may contain `api`, `application`, `domain`, and `persistence` packag
 - Active overlap is protected by a partial unique index on `(employee_id, leave_date, slot)` for active occupancy rows. A full day occupies both `AM` and `PM`; a half day occupies one slot. Constraint conflicts become a stable `409 LEAVE_OVERLAP` response.
 - Approval locks the request and its balance rows, revalidates scope, self-approval, status and current policy, then moves each reservation from reserved to consumed exactly once with status/audit events.
 - Rejection or pending cancellation locks the same rows and releases reserved units. Eligible approved cancellation decrements consumed units. The status update, balance movement, occupancy deactivation, history, and audit event commit or roll back together.
-- Administrator adjustments and exceptional corrections use the same locking and audit rules. No controller directly mutates request or balance entities.
+- Administrative correction permits only `PENDING -> CANCELLED`, `APPROVED -> CANCELLED`, and `REJECTED -> PENDING`. The first two release/restore balance and deactivate occupancy; `REJECTED -> PENDING` locks and revalidates current policy, dates, overlap, and balance, re-reserves tracked balance, and reactivates occupancy. Same-status and every other transition fail without mutation.
+- Balance allocation is the sole MVP allowance mechanism. Every `tracks_balance=true` request validates unreserved availability and creates reservation lines; there is no separate allowance-basis or optional balance-validation mode.
+- Administrator balance adjustments and permitted corrections use the same deterministic locking, immutable-ledger, history, and audit rules. No controller directly mutates request or balance entities.
+
+The transaction boundary is the application-service command. The following writes never commit independently:
+
+| Command | Locked/versioned state | Atomic work |
+|---|---|---|
+| Submit | Deterministically lock applicable balance rows; database guards active slots | Recalculate, validate, create `PENDING`, reserve tracked balance, insert occupancy, ledger, status history, and audit |
+| Approve | Require request `expectedVersion`; lock request and balance rows | Revalidate scope/policy/dates/overlap/balance lines, convert reserved to consumed, retain occupancy, write ledger/history/audit |
+| Reject | Require request `expectedVersion`; lock request and balance rows | Validate scope/comment, release reservation, deactivate occupancy, write ledger/history/audit |
+| Employee cancel | Require request `expectedVersion`; lock request and balance rows | Validate ownership/status/cutoff, release reserved or restore consumed units, deactivate occupancy, write ledger/history/audit |
+| Administrator correction | Require request `expectedVersion`; lock request and affected balance rows | Validate the exact permitted source/target pair; apply release/restore/re-reserve and occupancy effect; write ledger/history/audit |
+| Balance allocation | Enforce nonoverlapping period constraint and idempotency | Create the allocation summary, immutable `ALLOCATE` movement, and audit event |
+| Balance adjustment | Require balance `expectedVersion`; lock balance row | Apply signed adjustment and write immutable `ADMIN_ADJUST` movement and audit event |
+| Employee/type/holiday update | Require aggregate `expectedVersion`; optimistic compare-and-increment | Apply the authorized master-data change and audit it; holiday removal sets `active=false` and never deletes history |
+| Policy-version creation | Require parent leave-type `expectedVersion`; lock/compare parent and effective-date range | Validate ranges and create the immutable policy version and audit event |
+
+An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command has no observable mutation. Create-only commands without an existing mutable target (leave submission, new employee/type/holiday, and new balance-period allocation) use validation, database constraints, locking where applicable, and idempotency rather than a fabricated version token.
 
 ### Authentication and authorization
 
@@ -81,13 +101,15 @@ Each module may contain `api`, `application`, `domain`, and `persistence` packag
 - The session cookie is `HttpOnly`, `Secure` outside local HTTP development, and `SameSite=Lax`. Successful login rotates the session identifier; logout invalidates it and clears the cookie.
 - Keep CSRF enabled. The SPA obtains a CSRF token and sends it in a header for unsafe methods. Production uses one origin; the development server proxies `/api` to avoid broad credentialed CORS.
 - Passwords use Spring Security's delegating password encoder. Authentication failures return generic messages; unauthenticated and forbidden API requests return consistent `401` and `403` problem responses.
-- Endpoint role checks are supplemented by service-layer ownership and reporting-scope checks. A manager query is always scoped by the authenticated employee identifier, and a decision requires `request.employee.manager_id == actor.employee_id` and `request.employee_id != actor.employee_id`.
+- Endpoint role checks are supplemented by repository/application-service predicates. Employee-private queries require `request.employee_id = actor.employee_id`; manager queries require `request.employee.manager_id = actor.employee_id`; decisions repeat that predicate after locking and require `request.employee_id != actor.employee_id`; administrator endpoints require `ADMINISTRATOR` and use no manager impersonation path.
+- The employee team-calendar query returns only `PENDING`/`APPROVED` entries owned by active employees where `(entry.employee_id = actor.employee_id) OR (actor.manager_id IS NOT NULL AND entry.employee.manager_id = actor.manager_id)`. Its dedicated projection contains only employee display name, start date, end date, and status—never reason, balance, duration mode, leave type, comments, history, identifiers, or audit data.
 
 ### API and DTO strategy
 
 - `contracts/openapi.yaml` is the external REST contract. Controllers accept request DTOs and return response DTOs; persistence entities are never serialized.
 - Use `/api` as the base path, JSON payloads, ISO-8601 dates/timestamps, decimal day quantities externally, and integer half-day units internally.
 - List endpoints use bounded page parameters and stable sorting. Validation, authorization, conflict, and business-rule failures use a shared problem response with a machine-readable code and field errors.
+- Every concurrency-sensitive update DTO requires `expectedVersion`. Missing tokens fail request validation with `400 VALIDATION_FAILED`; mismatches return `409 STALE_VERSION` with the current value undisclosed. Correction DTOs expose only the closed actions `CANCEL_PENDING`, `CANCEL_APPROVED`, and `REOPEN_REJECTED`; the service validates each action's exact source status after locking.
 - State-changing operations support an `Idempotency-Key` header where duplicate browser submission is plausible. Database uniqueness on the actor and key prevents duplicate leave requests or balance movements.
 
 ### Migration and data lifecycle
@@ -95,7 +117,7 @@ Each module may contain `api`, `application`, `domain`, and `persistence` packag
 - Flyway versioned SQL files live in `backend/src/main/resources/db/migration`. Applied migrations are never edited; changes use forward migrations.
 - Initial migrations create identity/role/people tables, policy/holiday tables, balance/request tables, audit/history tables, constraints/indexes, and local-demo seed data in a profile-specific migration location.
 - Tests start an empty PostgreSQL instance, run all migrations, and verify constraints. Schema auto-creation is disabled; ORM validation checks mapping drift.
-- Audit and status history are append-only. Normal deletion uses employee/leave-type deactivation; requests and balance movements are retained.
+- Audit and status history are append-only. Normal deletion uses employee/leave-type deactivation. Holiday removal is soft deactivation (`active=false`); requests, policy snapshots, balance movements, status history, and audit records are retained.
 
 ### Frontend design
 
@@ -106,9 +128,9 @@ Each module may contain `api`, `application`, `domain`, and `persistence` packag
 
 ## Test Strategy
 
-- **Domain unit tests**: duration calculation, configured weekly offs and holidays, AM/PM rules, policy versions, cutoff boundaries, allowed transitions, balance invariants.
+- **Domain unit tests**: duration calculation, configured weekly offs and holidays, AM/PM rules, policy versions, cutoff boundaries, the exact ordinary/administrative transition matrix, mandatory tracked-balance reservation, and balance invariants.
 - **Repository/migration tests**: migrations from empty database, foreign/check/unique constraints, active occupancy conflicts, immutable history expectations, query indexes, and pessimistic locks using PostgreSQL Testcontainers.
-- **Transactional integration tests**: simultaneous submissions against one balance, exactly-once reservation conversion/restoration, rollback when audit/history insertion fails, stale status decisions, deterministic multi-period locking.
+- **Transactional integration tests**: simultaneous submissions against one balance, exactly-once reservation conversion/release/restoration/re-reservation, manager rejection ledger and availability restoration, all three permitted corrections and all forbidden corrections, rollback when occupancy/ledger/audit/history insertion fails, required stale-version rejection, deterministic multi-period locking, and holiday soft-deactivation retention.
 - **Security/API tests**: login/logout/me/CSRF; `401` and `403`; employee ownership; manager direct-report scope; manager self-approval denial; administrator-only configuration, adjustment, reports, and corrections; error contract and pagination.
 - **Frontend tests**: role routes and navigation, dashboard states, calculation preview, submission validation/conflicts, history, cancellation cutoff messaging, manager decision/comment behavior, administrator forms, API/session errors, keyboard behavior, and responsive variants.
 - **End-to-end smoke**: employee login and submit, manager login and approve/reject, employee status/balance update, eligible cancellation restoration, and audit visibility for an administrator.
@@ -179,11 +201,13 @@ README.md
 
 ## Post-design Constitution Check
 
+**Re-run after reconciled Phase 0/Phase 1 artifacts and contracts**: 2026-08-19
+
 | Principle | Result | Design evidence |
 |---|---|---|
-| Authoritative artifacts | PASS | Data model and contracts implement every clarified reservation, cutoff, scope, self-approval, and audit rule without adding HRMS scope. |
-| Traceable delivery | PASS | `contracts/traceability.md` maps requirements and outcomes to design and verification artifacts; implementation awaits tasks. |
-| Domain integrity and role separation | PASS | Normal reporting relationships, service authorization, active occupancy constraints, balance movements, and state history provide layered enforcement. |
+| Authoritative artifacts | PASS | Data model and contracts implement mandatory tracked-balance reservation, the sole allocation mechanism, privacy-safe same-manager calendars, exact correction transitions, holiday soft deactivation, required stale-write tokens, and audit rules without adding HRMS scope. |
+| Traceable delivery | PASS | `contracts/traceability.md` maps requirements and outcomes to known task/test IDs now; implementation awaits `$speckit-tasks` reconciliation. |
+| Domain integrity and role separation | PASS | Explicit ownership, direct-report, same-manager-calendar, administrator, and self-approval predicates combine with active occupancy constraints, balance movements, and immutable state history. |
 | Security, quality, verified workflows | PASS | Authentication, CSRF, transaction rollback, concurrency, migration, authorization, frontend, and end-to-end tests are explicitly defined. |
 | Simplicity and deliberate change | PASS | One backend service, one database, one frontend, forward-only migrations, and no distributed workflow are introduced. |
 

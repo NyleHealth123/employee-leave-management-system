@@ -1,0 +1,358 @@
+---
+
+description: "Dependency-ordered implementation tasks for the Employee Leave Management MVP"
+---
+
+# Tasks: Employee Leave Management MVP
+
+**Input**: Approved design documents from `/specs/001-employee-leave-management/`
+
+**Prerequisites**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/openapi.yaml`, `contracts/authorization.md`, `contracts/traceability.md`, `quickstart.md`, `.specify/memory/constitution.md`
+
+**Tests**: Automated tests are required for critical workflows by the constitution, specification, plan, and user request. Test tasks precede the corresponding implementation tasks and must initially fail for the intended reason.
+
+**Organization**: Tasks are grouped by user story after shared setup and foundational work. Requirement identifiers in task descriptions preserve traceability to the approved specification.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel because it targets different files and does not depend on unfinished work in the same phase
+- **[Story]**: Maps the task to a user story from `spec.md`
+- Every task names the primary file or module area it changes
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Create the approved modular-monolith backend, React SPA, test harnesses, and local development skeleton without adding application behavior.
+
+- [ ] T001 Create the Java 21 Spring Boot Maven Wrapper project and approved web, security, JPA, validation, Flyway, PostgreSQL, Actuator, JUnit, Spring Boot Test, Testcontainers, and architecture-test dependencies in `backend/pom.xml`, `backend/mvnw`, `backend/mvnw.cmd`, and `backend/.mvn/wrapper/maven-wrapper.properties`
+- [ ] T002 [P] Create the React 19 and TypeScript 5 Vite project with React Router and production dependencies in `frontend/package.json`, `frontend/package-lock.json`, `frontend/tsconfig.json`, `frontend/tsconfig.app.json`, and `frontend/vite.config.ts`
+- [ ] T003 [P] Configure frontend linting, Vitest, React Testing Library, user-event, MSW, and coverage scripts in `frontend/eslint.config.js`, `frontend/vitest.config.ts`, and `frontend/src/test/setup.ts`
+- [ ] T004 [P] Create the Playwright end-to-end package and configuration in `e2e/package.json`, `e2e/package-lock.json`, and `e2e/playwright.config.ts`
+- [ ] T005 Create the backend application entry point and approved module package skeleton in `backend/src/main/java/com/example/leavemanagement/LeaveManagementApplication.java` and `backend/src/main/java/com/example/leavemanagement/{auth,people,policy,balance,request,calendar,reporting,audit,shared}`
+- [ ] T006 [P] Create the frontend entry point and feature-oriented directory skeleton in `frontend/src/main.tsx`, `frontend/src/app/`, `frontend/src/features/`, and `frontend/src/shared/`
+- [ ] T007 [P] Add repository-wide Java, TypeScript, SQL, and Markdown formatting/editor settings in `.editorconfig`, `backend/.gitattributes`, and `frontend/.prettierignore`
+- [ ] T008 Configure the local PostgreSQL 17 service, health check, persistent volume, and environment variables in `compose.yaml` and `.env.example`, and ignore real local secrets in `.gitignore`
+- [ ] T009 [P] Configure the Vite `/api` development proxy and strict port 5173 in `frontend/vite.config.ts`
+- [ ] T010 [P] Add backend, frontend, database, and test commands plus the one-origin production model to `README.md`
+- [ ] T011 Verify the empty backend, frontend, and e2e scaffolds compile and record the baseline commands in `specs/001-employee-leave-management/tasks.md`
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Establish the database schema, persistence model, session security, shared API behavior, immutable audit foundation, and authenticated frontend shell required by every user story.
+
+**⚠️ CRITICAL**: No user story implementation starts until this phase passes its migration, security, and shared contract tests.
+
+- [ ] T012 Configure PostgreSQL, Flyway-only schema management, Hibernate `validate`, organization time zone, bounded pagination defaults, and `local`/`test` profiles in `backend/src/main/resources/application.yml`, `backend/src/main/resources/application-local.yml`, and `backend/src/test/resources/application-test.yml`
+- [ ] T013 Write a PostgreSQL Testcontainers migration test covering clean-database migration, required constraints, and ORM mapping validation in `backend/src/test/java/com/example/leavemanagement/integration/MigrationValidationTest.java`
+- [ ] T014 Implement identity, role, employee, manager self-reference, account-state, and supporting indexes in `backend/src/main/resources/db/migration/V001__identity_and_people.sql`
+- [ ] T015 Implement leave type, effective-dated policy, weekly-off, organization settings, holiday, policy-range constraints, and indexes in `backend/src/main/resources/db/migration/V002__leave_policy_and_calendar.sql`
+- [ ] T016 Implement balance periods, nonoverlap protection, summary invariants, append-only balance movements, idempotency keys, and indexes in `backend/src/main/resources/db/migration/V003__leave_balances.sql`
+- [ ] T017 Implement leave requests, half-day occupancy slots, balance allocation lines, state constraints, active-slot partial uniqueness, idempotency keys, and query indexes in `backend/src/main/resources/db/migration/V004__leave_requests.sql`
+- [ ] T018 Implement append-only request status history and audit-event tables, indexes, and mutation-prevention rules in `backend/src/main/resources/db/migration/V005__history_and_audit.sql`
+- [ ] T019 [P] Map organization, account, roles, employee profiles, and manager relationships with optimistic versions in `backend/src/main/java/com/example/leavemanagement/auth/persistence/UserAccountEntity.java` and `backend/src/main/java/com/example/leavemanagement/people/persistence/EmployeeProfileEntity.java`
+- [ ] T020 [P] Map leave types, policy versions, weekly offs, and holidays in `backend/src/main/java/com/example/leavemanagement/policy/persistence/LeaveTypeEntity.java`, `LeavePolicyVersionEntity.java`, `PolicyWeeklyOffEntity.java`, and `CompanyHolidayEntity.java`
+- [ ] T021 [P] Map balance summaries and immutable ledger movements in `backend/src/main/java/com/example/leavemanagement/balance/persistence/LeaveBalanceEntity.java` and `LeaveBalanceMovementEntity.java`
+- [ ] T022 [P] Map requests, occupancy slots, allocation lines, and status history in `backend/src/main/java/com/example/leavemanagement/request/persistence/LeaveRequestEntity.java`, `LeaveRequestSlotEntity.java`, `LeaveRequestBalanceLineEntity.java`, and `LeaveRequestStatusHistoryEntity.java`
+- [ ] T023 [P] Map immutable generic audit events and expose insert/read-only persistence operations in `backend/src/main/java/com/example/leavemanagement/audit/persistence/AuditEventEntity.java` and `AuditEventRepository.java`
+- [ ] T024 Define scoped repositories, deterministic balance locking queries, stable sorting, and bounded page queries in `backend/src/main/java/com/example/leavemanagement/{auth,people,policy,balance,request}/persistence/*Repository.java`
+- [ ] T025 [P] Write shared problem-response tests for validation, safe 401/403/404 handling, business codes, field errors, and correlation IDs in `backend/src/test/java/com/example/leavemanagement/contract/ProblemResponseContractTest.java`
+- [ ] T026 Implement the OpenAPI-aligned problem DTO, exception hierarchy, correlation filter, validation mapping, and global exception handler in `backend/src/main/java/com/example/leavemanagement/shared/api/ProblemResponse.java`, `GlobalExceptionHandler.java`, and `CorrelationIdFilter.java`
+- [ ] T027 [P] Write MockMvc security tests for CSRF bootstrap, generic login failure, session fixation protection, logout invalidation, disabled accounts, multi-role principals, and protected endpoint 401/403 behavior in `backend/src/test/java/com/example/leavemanagement/security/AuthenticationSecurityTest.java`
+- [ ] T028 Implement Spring Security delegating password encoding, database-backed principal loading, JSON session login/logout/me/CSRF endpoints, cookie attributes, CSRF enforcement, and coarse role rules in `backend/src/main/java/com/example/leavemanagement/auth/application/AccountUserDetailsService.java`, `backend/src/main/java/com/example/leavemanagement/auth/api/AuthController.java`, and `backend/src/main/java/com/example/leavemanagement/shared/security/SecurityConfiguration.java` (FR-001, FR-002)
+- [ ] T029 Implement the authenticated user/employee identity abstraction used by service-layer ownership and scope checks in `backend/src/main/java/com/example/leavemanagement/shared/security/CurrentActor.java` and `CurrentActorProvider.java` (FR-002, FR-003)
+- [ ] T030 [P] Write frontend API-client tests for cookie credentials, CSRF acquisition/header injection, problem mapping, correlation IDs, and expired-session handling in `frontend/src/shared/api/apiClient.test.ts`
+- [ ] T031 Implement the typed native-fetch API client, CSRF token lifecycle, common problem types, and session-expiry callback in `frontend/src/shared/api/apiClient.ts` and `frontend/src/shared/api/problem.ts`
+- [ ] T032 [P] Write authenticated route and multi-role navigation tests in `frontend/src/app/router/AppRouter.test.tsx` and `frontend/src/app/layout/AppShell.test.tsx`
+- [ ] T033 Implement the authentication provider, protected role routes, multi-role dashboard switcher, logout action, and accessible responsive shell in `frontend/src/app/providers/AuthProvider.tsx`, `frontend/src/app/router/AppRouter.tsx`, and `frontend/src/app/layout/AppShell.tsx`
+- [ ] T034 Add architecture tests that prevent controllers from calling repositories and enforce approved module dependencies in `backend/src/test/java/com/example/leavemanagement/architecture/ModuleArchitectureTest.java`
+
+**Checkpoint**: All migrations apply to empty PostgreSQL, authentication and CSRF work through the REST contract, shared failures are stable and safe, and both applications compile.
+
+---
+
+## Phase 3: User Story 1 - Submit and Track a Leave Request (Priority: P1) 🎯 MVP
+
+**Goal**: An authenticated employee can view configured options and balances, preview authoritative duration, submit a non-overlapping request with an atomic pending reservation, inspect history, and use the employee dashboard/calendar.
+
+**Independent Test**: With configured policy, holidays, weekly offs, and balance, sign in as an employee, preview a valid range, submit it, and verify `PENDING`, occupied slots, reserved units, immutable movement/status/audit entries, own history, and dashboard visibility; overlaps and insufficient concurrent reservations must leave no partial data.
+
+### Tests for User Story 1
+
+- [ ] T035 [P] [US1] Write parameterized duration-calculation unit tests for inverted/empty ranges, configurable weekly offs and holidays, full-day slots, permitted AM/PM half-days, disallowed half-days, policy boundaries, and zero chargeable days in `backend/src/test/java/com/example/leavemanagement/unit/LeaveDurationCalculatorTest.java` (FR-006–FR-008, FR-033, FR-034)
+- [ ] T036 [P] [US1] Write PostgreSQL repository tests for every partial/full active overlap shape and concurrent active-slot uniqueness in `backend/src/test/java/com/example/leavemanagement/integration/LeaveRequestOverlapRepositoryTest.java` (FR-009)
+- [ ] T037 [P] [US1] Write transactional submission tests for deterministic multi-period locks, simultaneous sufficient/insufficient reservations, idempotent duplicate submission, and rollback when movement/history/audit persistence fails in `backend/src/test/java/com/example/leavemanagement/integration/LeaveSubmissionTransactionTest.java` (FR-010, FR-011, FR-027)
+- [ ] T038 [P] [US1] Write MockMvc contract/security tests for leave types, holidays, own balances, calculation, submit, own list/detail, dashboard, and privacy-safe employee calendar operations in `backend/src/test/java/com/example/leavemanagement/contract/EmployeeLeaveApiContractTest.java` (FR-003–FR-011, FR-031)
+- [ ] T039 [P] [US1] Write frontend behavior tests for request validation, preview exclusions, half-day controls, conflict/insufficient-balance problems, duplicate-submit prevention, request history/detail, and dashboard loading/empty/error states in `frontend/src/features/leave-requests/LeaveRequestFlow.test.tsx` and `frontend/src/features/dashboard/EmployeeDashboard.test.tsx`
+
+### Implementation for User Story 1
+
+- [ ] T040 [P] [US1] Define integer half-day units, duration modes, calculated slots, exclusion reasons, and calculation result domain types in `backend/src/main/java/com/example/leavemanagement/request/domain/LeaveUnits.java`, `DurationMode.java`, and `LeaveCalculation.java`
+- [ ] T041 [US1] Implement the single authoritative duration calculator using effective policies, organization time zone, configured weekly offs, and active company holidays in `backend/src/main/java/com/example/leavemanagement/request/domain/LeaveDurationCalculator.java` (FR-007, FR-008, FR-033, FR-034)
+- [ ] T042 [P] [US1] Implement active leave-type/option and company-holiday reference queries in `backend/src/main/java/com/example/leavemanagement/policy/application/LeavePolicyQueryService.java` and `backend/src/main/java/com/example/leavemanagement/calendar/application/HolidayQueryService.java` (FR-005, FR-031)
+- [ ] T043 [P] [US1] Implement own balance projection and multi-period deterministic locking/allocation operations in `backend/src/main/java/com/example/leavemanagement/balance/application/LeaveBalanceService.java` (FR-005, FR-010)
+- [ ] T044 [US1] Implement calculation preview with server-owned employee identity and shared calculation rules in `backend/src/main/java/com/example/leavemanagement/request/application/LeaveCalculationService.java` (FR-006–FR-008)
+- [ ] T045 [US1] Implement atomic leave submission that recalculates, checks active overlap, locks/revalidates balances, inserts `PENDING` request and slots, reserves exact balance lines, writes ledger/status/audit records, and honors idempotency in `backend/src/main/java/com/example/leavemanagement/request/application/LeaveSubmissionService.java` (FR-009–FR-012, FR-027, FR-028)
+- [ ] T046 [US1] Translate active-slot and insufficient-balance database conflicts to stable `409 LEAVE_OVERLAP` and `409 INSUFFICIENT_BALANCE` problems in `backend/src/main/java/com/example/leavemanagement/request/application/LeaveSubmissionExceptionTranslator.java` (FR-009, FR-010, FR-032)
+- [ ] T047 [P] [US1] Implement employee-owned paginated history/detail queries that expose decision comments and status history without accepting an employee ID in `backend/src/main/java/com/example/leavemanagement/request/application/EmployeeLeaveRequestQueryService.java` (FR-003, FR-011)
+- [ ] T048 [P] [US1] Implement employee dashboard and privacy-safe basic team calendar query services in `backend/src/main/java/com/example/leavemanagement/calendar/application/EmployeeDashboardService.java` and `EmployeeTeamCalendarService.java` (FR-004, FR-031)
+- [ ] T049 [US1] Implement OpenAPI DTOs and controllers for `/leave-types`, `/holidays`, `/employee/leave-balances`, calculation, submission, own history/detail, dashboard, and employee team calendar in `backend/src/main/java/com/example/leavemanagement/{policy,calendar,balance,request}/api/` (FR-003–FR-011, FR-031)
+- [ ] T050 [P] [US1] Define TypeScript request, calculation, balance, holiday, request-history, page, and dashboard contract types in `frontend/src/shared/types/leave.ts` and API functions in `frontend/src/features/leave-requests/api.ts` and `frontend/src/features/dashboard/api.ts`
+- [ ] T051 [P] [US1] Build accessible reusable field, error summary, loading, empty, retry, card, table, status badge, and date-display components in `frontend/src/shared/components/` and `frontend/src/shared/forms/` (FR-032)
+- [ ] T052 [US1] Build the employee leave request form with leave-type options, full/half-day controls, authoritative preview, exclusions, available balance, validation, and idempotent submission in `frontend/src/features/leave-requests/LeaveRequestFormPage.tsx` (FR-005–FR-010)
+- [ ] T053 [P] [US1] Build responsive employee request history and detail/status-timeline pages in `frontend/src/features/leave-requests/LeaveRequestHistoryPage.tsx` and `LeaveRequestDetailPage.tsx` (FR-011, FR-028)
+- [ ] T054 [P] [US1] Build the employee dashboard with balance cards, pending requests, approved upcoming leave, and holidays in `frontend/src/features/dashboard/EmployeeDashboardPage.tsx` (FR-004)
+- [ ] T055 [P] [US1] Build the privacy-safe responsive employee team agenda/calendar view in `frontend/src/features/calendar/EmployeeTeamCalendarPage.tsx` (FR-031)
+- [ ] T056 [US1] Register employee dashboard, request, history/detail, balance, holiday, and team-calendar routes and navigation in `frontend/src/app/router/AppRouter.tsx` and `frontend/src/app/layout/AppShell.tsx`
+- [ ] T057 [US1] Run US1 backend and frontend suites and reconcile every US1 operation/schema with `specs/001-employee-leave-management/contracts/openapi.yaml` in `backend/src/test/java/com/example/leavemanagement/contract/EmployeeLeaveApiContractTest.java`
+
+**Checkpoint**: User Story 1 is independently usable and testable as the employee-request MVP.
+
+---
+
+## Phase 4: User Story 2 - Decide a Direct Report's Leave Request (Priority: P1)
+
+**Goal**: A manager can see and decide only direct-report requests, never self-approve, apply rejection-comment policy, atomically convert/release reservations, and view the scoped team calendar/dashboard.
+
+**Independent Test**: Sign in as a direct manager, inspect and approve/reject a pending direct-report request, then verify exact balance conversion/release and history/audit; repeat as an unrelated manager and as the request owner and verify denial without mutation.
+
+### Tests for User Story 2
+
+- [ ] T058 [P] [US2] Write manager authorization matrix tests for role gating, repository query scoping, direct-report detail, unrelated-manager denial, multi-role behavior, and unconditional self-approval prevention in `backend/src/test/java/com/example/leavemanagement/security/ManagerAuthorizationTest.java` (FR-014–FR-016)
+- [ ] T059 [P] [US2] Write transactional decision tests for current-policy revalidation, stale versions, material policy changes, required rejection comments, exactly-once reserve-to-consume/release movements, idempotency, and audit/history rollback in `backend/src/test/java/com/example/leavemanagement/integration/ManagerDecisionTransactionTest.java` (FR-016, FR-017, FR-024–FR-028)
+- [ ] T060 [P] [US2] Write MockMvc contract tests for manager queue/detail, approve/reject, and scoped team-calendar operations in `backend/src/test/java/com/example/leavemanagement/contract/ManagerLeaveApiContractTest.java` (FR-014–FR-018)
+- [ ] T061 [P] [US2] Write frontend tests for manager dashboard/queue states, detail balance, approve/reject dialogs, required comments, stale/policy conflicts, forbidden scope, and responsive calendar in `frontend/src/features/team-approvals/ManagerWorkflow.test.tsx` and `frontend/src/features/dashboard/ManagerDashboard.test.tsx`
+
+### Implementation for User Story 2
+
+- [ ] T062 [P] [US2] Implement direct-report-scoped queue/detail repository projections and relevant-balance lookup in `backend/src/main/java/com/example/leavemanagement/request/persistence/ManagerLeaveRequestQueryRepository.java` (FR-014, FR-015)
+- [ ] T063 [US2] Implement manager request query service that derives manager identity from the principal and repeats scope checks without leaking out-of-scope resources in `backend/src/main/java/com/example/leavemanagement/request/application/ManagerLeaveRequestQueryService.java` (FR-014, FR-015, FR-032)
+- [ ] T064 [US2] Implement atomic approval with request/balance locking, direct-report and self checks, status/version/current-policy/duration/overlap/balance revalidation, exactly-once reservation conversion, and status/audit writes in `backend/src/main/java/com/example/leavemanagement/request/application/ApproveLeaveRequestService.java` (FR-015, FR-016, FR-024, FR-026–FR-028)
+- [ ] T065 [US2] Implement atomic rejection with direct-report and self checks, configured comment validation, exactly-once reservation release, slot deactivation, and status/audit writes in `backend/src/main/java/com/example/leavemanagement/request/application/RejectLeaveRequestService.java` (FR-015–FR-017, FR-025, FR-027, FR-028)
+- [ ] T066 [P] [US2] Implement direct-report-only pending/approved calendar and manager dashboard projections in `backend/src/main/java/com/example/leavemanagement/calendar/application/ManagerTeamCalendarService.java` and `backend/src/main/java/com/example/leavemanagement/request/application/ManagerDashboardService.java` (FR-018)
+- [ ] T067 [US2] Implement OpenAPI manager DTOs and queue/detail/approve/reject/team-calendar controllers with coarse `MANAGER` checks in `backend/src/main/java/com/example/leavemanagement/request/api/ManagerLeaveRequestController.java` and `backend/src/main/java/com/example/leavemanagement/calendar/api/ManagerCalendarController.java` (FR-014–FR-018)
+- [ ] T068 [P] [US2] Implement typed manager API functions in `frontend/src/features/team-approvals/api.ts` and manager contract types in `frontend/src/shared/types/manager.ts`
+- [ ] T069 [US2] Build the manager dashboard, paginated pending queue, request detail with relevant balance, and accessible approve/reject dialogs in `frontend/src/features/dashboard/ManagerDashboardPage.tsx`, `frontend/src/features/team-approvals/ManagerQueuePage.tsx`, and `ManagerRequestDetailPage.tsx` (FR-014, FR-016, FR-017)
+- [ ] T070 [P] [US2] Build the responsive pending/approved direct-report agenda/calendar in `frontend/src/features/calendar/ManagerTeamCalendarPage.tsx` (FR-018)
+- [ ] T071 [US2] Register manager-only dashboard, queue/detail, and calendar routes/navigation in `frontend/src/app/router/AppRouter.tsx` and `frontend/src/app/layout/AppShell.tsx`
+- [ ] T072 [US2] Run the US2 suites and verify unauthorized, stale, failed-audit, and duplicate-decision attempts leave request, slot, balance, movement, and history state unchanged in `backend/src/test/java/com/example/leavemanagement/integration/ManagerDecisionTransactionTest.java`
+
+**Checkpoint**: User Story 2 works for direct reports only and preserves every authorization and balance invariant.
+
+---
+
+## Phase 5: User Story 3 - Administer Leave Policy and Employee Records (Priority: P1)
+
+**Goal**: An administrator can manage employees/reporting, leave types and effective policies, weekly offs, holidays, starting balances, and audited adjustments through administrator-only APIs and UI.
+
+**Independent Test**: As an administrator, create/update an employee and manager relationship, configure a leave type/policy and holiday, allocate and adjust a balance with reasons, then verify scope, calculation, immutable ledger, and audit effects; verify every operation is denied to non-administrators.
+
+### Tests for User Story 3
+
+- [ ] T073 [P] [US3] Write people-domain/integration tests for unique employee identity, active account/profile behavior, manager-role requirement, manager self-reference rejection, reporting changes, and deactivation retention in `backend/src/test/java/com/example/leavemanagement/integration/EmployeeAdministrationTest.java` (FR-019)
+- [ ] T074 [P] [US3] Write policy-domain/repository tests for version sequencing, nonoverlapping effective dates, data-driven weekly offs/holiday treatment, balance-validation implications, half-day flags, rejection rules, cutoff values, and leave-type deactivation in `backend/src/test/java/com/example/leavemanagement/integration/LeavePolicyAdministrationTest.java` (FR-020, FR-033, FR-034)
+- [ ] T075 [P] [US3] Write transactional balance administration tests for nonoverlapping periods, allocation, signed adjustment, mandatory reason, deterministic lock, idempotency, immutable `ALLOCATE`/`ADMIN_ADJUST` movements, and rollback on audit failure in `backend/src/test/java/com/example/leavemanagement/integration/BalanceAdministrationTest.java` (FR-021, FR-023, FR-027)
+- [ ] T076 [P] [US3] Write holiday repository/application tests for create/update/deactivate, unique active date behavior, and downstream calculation effects in `backend/src/test/java/com/example/leavemanagement/integration/HolidayAdministrationTest.java` (FR-022, FR-034)
+- [ ] T077 [P] [US3] Write administrator-only MockMvc contract tests for employee, reporting, leave type, policy, holiday, balance allocation, and balance adjustment operations in `backend/src/test/java/com/example/leavemanagement/contract/AdministrationConfigurationApiContractTest.java` (FR-019–FR-023)
+- [ ] T078 [P] [US3] Write frontend tests for administrator dashboard states and employee, manager, leave-type/policy, weekly-off, holiday, allocation, and adjustment forms including validation and 403/409 handling in `frontend/src/features/admin/AdminConfiguration.test.tsx` and `frontend/src/features/dashboard/AdminDashboard.test.tsx`
+
+### Implementation for User Story 3
+
+- [ ] T079 [US3] Implement transactional employee/account creation, update, role assignment, manager validation/change, password encoding, optimistic version checks, and deactivation in `backend/src/main/java/com/example/leavemanagement/people/application/EmployeeAdministrationService.java` (FR-019)
+- [ ] T080 [P] [US3] Implement paginated employee administration queries and manager-choice projections in `backend/src/main/java/com/example/leavemanagement/people/application/EmployeeAdministrationQueryService.java` (FR-019)
+- [ ] T081 [US3] Implement leave-type metadata creation/update/deactivation and immutable effective-dated policy version creation with weekly-off rules and range validation in `backend/src/main/java/com/example/leavemanagement/policy/application/LeavePolicyAdministrationService.java` (FR-020, FR-033)
+- [ ] T082 [US3] Implement holiday create/update/deactivation using administrator actor and optimistic version checks in `backend/src/main/java/com/example/leavemanagement/policy/application/HolidayAdministrationService.java` (FR-022)
+- [ ] T083 [US3] Implement atomic balance-period allocation with nonoverlap enforcement and `ALLOCATE` movement/audit records in `backend/src/main/java/com/example/leavemanagement/balance/application/BalanceAllocationService.java` (FR-021, FR-027)
+- [ ] T084 [US3] Implement atomic administrator balance adjustment with row locking, nonblank reason, idempotency, summary update, immutable `ADMIN_ADJUST` movement, and audit record in `backend/src/main/java/com/example/leavemanagement/balance/application/BalanceAdjustmentService.java` (FR-023, FR-027, FR-028)
+- [ ] T085 [US3] Implement OpenAPI administrator DTOs/controllers for employees, leave types, policies, holidays, employee balances, allocations, and adjustments with `ADMINISTRATOR` checks in `backend/src/main/java/com/example/leavemanagement/{people,policy,balance}/api/` (FR-019–FR-023)
+- [ ] T086 [P] [US3] Implement typed administrator configuration API functions and contract types in `frontend/src/features/admin/api.ts` and `frontend/src/shared/types/admin.ts`
+- [ ] T087 [P] [US3] Build the administrator employee list/editor with account roles, active state, manager assignment, optimistic version handling, and pagination in `frontend/src/features/admin/employees/AdminEmployeesPage.tsx` (FR-019)
+- [ ] T088 [P] [US3] Build leave-type and effective-policy pages with configurable balance flags, half-days, weekly offs, holiday treatment, rejection comments, cancellation cutoff, and effective dates in `frontend/src/features/admin/policies/AdminLeavePoliciesPage.tsx` (FR-020, FR-033)
+- [ ] T089 [P] [US3] Build company holiday list/create/edit/deactivate flows in `frontend/src/features/admin/holidays/AdminHolidaysPage.tsx` (FR-022)
+- [ ] T090 [P] [US3] Build employee balance allocation and adjustment views with mandatory reason, ledger-oriented confirmation, and conflict handling in `frontend/src/features/admin/balances/AdminEmployeeBalancesPage.tsx` (FR-021, FR-023)
+- [ ] T091 [US3] Build the administrator dashboard with links and configuration health summaries in `frontend/src/features/dashboard/AdminDashboardPage.tsx` and register administrator-only configuration routes in `frontend/src/app/router/AppRouter.tsx`
+- [ ] T092 [US3] Run the US3 suites and verify a new manager assignment, policy, weekly-off rule, holiday, and balance immediately affect the downstream scoped calculation workflow in `backend/src/test/java/com/example/leavemanagement/integration/AdministrationWorkflowTest.java`
+
+**Checkpoint**: User Story 3 supplies all configurable people, policy, holiday, and balance prerequisites without hard-coded organization rules.
+
+---
+
+## Phase 6: User Story 4 - Cancel an Eligible Leave Request (Priority: P2)
+
+**Goal**: An employee can cancel only their own pending request or eligible approved future leave, with exact reservation release or consumption restoration; administrators can perform separate, reasoned exceptional corrections.
+
+**Independent Test**: Cancel pending and approved-before-cutoff requests and verify `CANCELLED`, inactive slots, exactly-once ledger restoration, history/audit, and updated balance; test exactly at/after cutoff, foreign ownership, duplicate calls, and terminal states with no mutation, then verify a reasoned administrator correction uses compensating records.
+
+### Tests for User Story 4
+
+- [ ] T093 [P] [US4] Write cancellation eligibility unit tests for pending requests, approved future leave, organization-time-zone cutoff boundaries, terminal states, ownership, and allowed transitions in `backend/src/test/java/com/example/leavemanagement/unit/CancellationPolicyTest.java` (FR-012, FR-013)
+- [ ] T094 [P] [US4] Write transactional cancellation tests for exact reservation release/consumption restoration, slot deactivation, idempotency, concurrent duplicate commands, immutable ledger/status/audit writes, and full rollback on audit failure in `backend/src/test/java/com/example/leavemanagement/integration/LeaveCancellationTransactionTest.java` (FR-013, FR-025, FR-027, FR-028)
+- [ ] T095 [P] [US4] Write administrator correction tests for role isolation, mandatory reason, valid target transitions, compensating movements, retained prior history, idempotency, and rollback in `backend/src/test/java/com/example/leavemanagement/integration/ExceptionalCorrectionTransactionTest.java` (FR-035)
+- [ ] T096 [P] [US4] Write MockMvc contract/security tests for employee cancellation and administrator correction operations and their stable 403/409/422 problems in `backend/src/test/java/com/example/leavemanagement/contract/LeaveCancellationApiContractTest.java` (FR-013, FR-032, FR-035)
+- [ ] T097 [P] [US4] Write frontend tests for cancellation visibility, confirmation, cutoff messages, balance refresh, duplicate clicks, errors, and administrator correction reason/state controls in `frontend/src/features/leave-requests/LeaveCancellation.test.tsx` and `frontend/src/features/admin/corrections/AdminCorrection.test.tsx`
+
+### Implementation for User Story 4
+
+- [ ] T098 [US4] Implement cancellation eligibility evaluation using request ownership, status, policy snapshot/current rules, start date, organization time zone, and exact cutoff instant in `backend/src/main/java/com/example/leavemanagement/request/domain/CancellationPolicy.java` (FR-012, FR-013)
+- [ ] T099 [US4] Implement atomic own cancellation with request/balance locks, version/idempotency checks, exact balance-line release or restoration, slot deactivation, `CANCELLED` history, and audit event in `backend/src/main/java/com/example/leavemanagement/request/application/CancelLeaveRequestService.java` (FR-013, FR-025, FR-027, FR-028)
+- [ ] T100 [US4] Implement administrator-only exceptional correction with reason validation, valid corrected state, compensating movement, occupancy reconciliation, retained prior ledger/history, and complete audit in `backend/src/main/java/com/example/leavemanagement/request/application/ExceptionalCorrectionService.java` (FR-035)
+- [ ] T101 [US4] Implement OpenAPI cancel and correction DTO/controller operations with stable cutoff, stale-state, transition, and access errors in `backend/src/main/java/com/example/leavemanagement/request/api/LeaveCancellationController.java` and `backend/src/main/java/com/example/leavemanagement/request/api/AdminCorrectionController.java` (FR-013, FR-032, FR-035)
+- [ ] T102 [P] [US4] Add typed cancellation/correction API calls and problem-code mapping in `frontend/src/features/leave-requests/api.ts` and `frontend/src/features/admin/api.ts`
+- [ ] T103 [P] [US4] Add accessible cancellation controls, confirmation dialog, eligibility/cutoff explanation, and post-cancel refresh to `frontend/src/features/leave-requests/LeaveRequestDetailPage.tsx` (FR-013)
+- [ ] T104 [P] [US4] Build the administrator correction dialog with target-state constraints, mandatory reason, explicit exceptional-action warning, and audit confirmation in `frontend/src/features/admin/corrections/AdminCorrectionDialog.tsx` (FR-035)
+- [ ] T105 [US4] Run US4 suites and reconcile balance summaries against immutable movement lines after each cancellation/correction path in `backend/src/test/java/com/example/leavemanagement/integration/LeaveCancellationTransactionTest.java`
+
+**Checkpoint**: User Story 4 preserves balances and immutable history across normal cancellation and administrator-only correction.
+
+---
+
+## Phase 7: User Story 5 - Review Organization Leave Activity (Priority: P2)
+
+**Goal**: An administrator can inspect organization-wide requests, immutable audit history, and paginated leave summaries by status and leave type for a selected reporting period.
+
+**Independent Test**: Seed requests across employees, statuses, types, and dates; as an administrator verify filtered paginated organization requests, exact report buckets, and audit-event fields, while non-administrators receive 403 without data disclosure.
+
+### Tests for User Story 5
+
+- [ ] T106 [P] [US5] Write PostgreSQL reporting tests for inclusive period boundaries, status/type aggregation, decimal-day conversion, stable sorting, pagination bounds, and relevant indexes in `backend/src/test/java/com/example/leavemanagement/integration/LeaveReportingRepositoryTest.java` (FR-029, FR-030)
+- [ ] T107 [P] [US5] Write audit query tests for append-only behavior, required actor/action/time/status/reason fields, entity filters, stable ordering, pagination, and administrator-only access in `backend/src/test/java/com/example/leavemanagement/integration/AuditHistoryQueryTest.java` (FR-027, FR-028)
+- [ ] T108 [P] [US5] Write MockMvc contract/security tests for organization request search, leave summary, and audit-event endpoints in `backend/src/test/java/com/example/leavemanagement/contract/AdminReportingApiContractTest.java` (FR-029, FR-030)
+- [ ] T109 [P] [US5] Write frontend tests for administrator report period validation, status/type summary states, organization request pagination, audit filtering, safe errors, keyboard access, and responsive layouts in `frontend/src/features/reports/AdminReports.test.tsx`
+
+### Implementation for User Story 5
+
+- [ ] T110 [P] [US5] Implement paginated organization request projections with date/status filters and stable sorting in `backend/src/main/java/com/example/leavemanagement/reporting/persistence/OrganizationLeaveRequestRepository.java` (FR-029)
+- [ ] T111 [P] [US5] Implement status/type aggregate report queries with inclusive selected-period semantics and integer-unit-to-day conversion in `backend/src/main/java/com/example/leavemanagement/reporting/persistence/LeaveSummaryRepository.java` (FR-030)
+- [ ] T112 [P] [US5] Implement immutable audit event filtering/pagination projections in `backend/src/main/java/com/example/leavemanagement/audit/application/AuditQueryService.java` (FR-027, FR-028)
+- [ ] T113 [US5] Implement administrator reporting services and OpenAPI DTO/controllers for organization requests, leave summaries, and audit events in `backend/src/main/java/com/example/leavemanagement/reporting/application/LeaveReportingService.java`, `backend/src/main/java/com/example/leavemanagement/reporting/api/AdminReportingController.java`, and `backend/src/main/java/com/example/leavemanagement/audit/api/AdminAuditController.java` (FR-027–FR-030)
+- [ ] T114 [P] [US5] Implement typed report, organization-request, and audit API functions/types in `frontend/src/features/reports/api.ts` and `frontend/src/shared/types/reporting.ts`
+- [ ] T115 [US5] Build administrator organization request table, selected-period status/type summaries, and audit-event browser with loading/empty/error states in `frontend/src/features/reports/AdminLeaveReportsPage.tsx` and `frontend/src/features/reports/AdminAuditHistoryPage.tsx` (FR-027–FR-030)
+- [ ] T116 [US5] Add report and audit summaries/links to the administrator dashboard and register administrator-only routes in `frontend/src/features/dashboard/AdminDashboardPage.tsx` and `frontend/src/app/router/AppRouter.tsx`
+- [ ] T117 [US5] Run US5 suites and compare report totals with source request units across all four statuses and multiple leave types in `backend/src/test/java/com/example/leavemanagement/integration/LeaveReportingRepositoryTest.java`
+
+**Checkpoint**: User Story 5 provides accurate, scoped organization oversight and complete immutable audit visibility.
+
+---
+
+## Phase 8: Polish & Cross-Cutting Verification
+
+**Purpose**: Validate the whole approved system, finish local-demo support, and address security, accessibility, performance, and documentation requirements that span stories.
+
+- [ ] T118 [P] Add profile-isolated local-demo Flyway seed data for administrator, manager, employee, reporting relationships, policies, holidays, balances, and requests in `backend/src/main/resources/db/local-demo/R__local_demo_data.sql`, with credentials supplied only from local environment configuration
+- [ ] T119 [P] Add OpenAPI drift validation to Maven verification against `specs/001-employee-leave-management/contracts/openapi.yaml` in `backend/pom.xml` and `backend/src/test/java/com/example/leavemanagement/contract/OpenApiValidationTest.java`
+- [ ] T120 [P] Add full backend authorization coverage for every operation in `contracts/authorization.md`, including multi-role endpoint semantics and no-mutation assertions, in `backend/src/test/java/com/example/leavemanagement/security/AuthorizationMatrixTest.java` (SC-003)
+- [ ] T121 [P] Add cross-workflow ledger reconciliation and required-audit assertions for submit, approve, reject, cancel, adjust, and correct in `backend/src/test/java/com/example/leavemanagement/integration/LedgerAuditReconciliationTest.java` (SC-004, SC-007)
+- [ ] T122 [P] Add responsive and keyboard-accessibility tests for role navigation, forms, dialogs, tables/cards, status text, focus management, and agenda views in `frontend/src/test/AccessibilityResponsive.test.tsx`
+- [ ] T123 Implement query timing assertions or explain-plan checks for indexed interactive, calendar, and report queries in `backend/src/test/java/com/example/leavemanagement/integration/QueryPerformanceTest.java` using the plan's 500 ms/2 s targets at representative MVP fixture size
+- [ ] T124 Implement focused Playwright smoke tests for employee login/preview/submit, manager approve/reject, employee balance/status refresh, eligible cancellation restoration, and administrator audit visibility in `e2e/tests/leave-management-smoke.spec.ts`
+- [ ] T125 [P] Add local-demo test-data reset/cleanup support that never targets production profiles in `e2e/global-setup.ts` and `backend/src/main/java/com/example/leavemanagement/shared/config/LocalDemoConfiguration.java`
+- [ ] T126 Run `backend/mvnw.cmd verify`, `frontend` lint/typecheck/test/build, and `e2e` smoke tests; record commands and any platform-specific notes in `README.md`
+- [ ] T127 Execute every acceptance scenario in `specs/001-employee-leave-management/quickstart.md` against a clean local PostgreSQL volume and document verified results in `specs/001-employee-leave-management/quickstart.md`
+- [ ] T128 Conduct the timed employee and manager usability checks and validation-message evaluation defined by SC-001, SC-005, and SC-008, recording evidence without changing requirements in `specs/001-employee-leave-management/quickstart.md`
+- [ ] T129 Review dependency versions, session/cookie/CSRF settings, secret handling, safe logging, and production profile defaults in `backend/pom.xml`, `backend/src/main/resources/application.yml`, `frontend/package-lock.json`, and `.env.example`
+- [ ] T130 Re-run the traceability audit and add implemented task/test identifiers for FR-001–FR-035 and SC-001–SC-008 to `specs/001-employee-leave-management/contracts/traceability.md`
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Phase 1 — Setup**: Starts immediately; T001 and T002 establish the backend/frontend manifests needed by later setup tasks.
+- **Phase 2 — Foundational**: Depends on Phase 1 and blocks every story. Migrations T014–T018 run in order; entity mappings T019–T023 can proceed in parallel after their migrations are drafted; repositories and services follow their mapped entities.
+- **Phase 3 — US1**: Depends on Phase 2 and supplies the shared request, calculation, balance reservation, history, and employee UI capabilities consumed by later workflow stories.
+- **Phase 4 — US2**: Depends on US1 because manager decisions act on submitted pending requests and reservation lines.
+- **Phase 5 — US3**: Depends on Phase 2 for its own administration increment, but completing it before end-to-end US1/US2 validation provides the configurable people, policy, holiday, and balance data those stories require.
+- **Phase 6 — US4**: Depends on US1 request/reservation behavior; approved cancellation tests also depend on US2 approval behavior. Exceptional correction depends on US3 administrator security.
+- **Phase 7 — US5**: Depends on persisted requests/history from US1–US4 and administrator security from US3.
+- **Phase 8 — Polish**: Depends on all stories selected for release.
+
+### User Story Completion Order
+
+```text
+Setup -> Foundational -> US1 Submit/Track -> US2 Decide
+                         |                  |
+                         +-> US3 Admin -----+-> US4 Cancel/Correct -> US5 Report/Audit -> Polish
+```
+
+- **US1 (P1)** is the suggested first functional MVP after setup/foundation.
+- **US2 (P1)** requires US1's pending requests and reservations.
+- **US3 (P1)** can be developed alongside US1 after foundation in separate files, but its configuration workflow must be complete before the full quickstart demonstration.
+- **US4 (P2)** requires US1 and the approval path from US2; administrator correction also uses US3 authorization/configuration foundations.
+- **US5 (P2)** is independently testable with fixtures but is delivered after earlier stories so it can report their real events.
+
+### Within Each User Story
+
+- Write the listed tests first and confirm they fail for the intended missing behavior.
+- Implement domain rules before application transactions, application transactions before controllers, and controllers before frontend integration.
+- Keep controller DTOs separate from persistence entities and keep cross-module access behind application/domain interfaces.
+- Run the story checkpoint suites before starting dependent story work.
+
+---
+
+## Parallel Execution Examples
+
+### User Story 1
+
+```text
+T035 duration unit tests || T036 overlap repository tests || T037 reservation transaction tests || T038 API contract tests || T039 frontend tests
+After T041: T042 reference queries || T043 balance operations
+After backend API completion: T053 history UI || T054 employee dashboard || T055 employee calendar
+```
+
+### User Story 2
+
+```text
+T058 authorization tests || T059 decision transaction tests || T060 API contract tests || T061 frontend tests
+After decision services: T066 manager calendar/dashboard projections || T068 typed frontend API
+```
+
+### User Story 3
+
+```text
+T073 people tests || T074 policy tests || T075 balance tests || T076 holiday tests || T077 API tests || T078 frontend tests
+After backend APIs: T087 employee UI || T088 policy UI || T089 holiday UI || T090 balance UI
+```
+
+### User Story 4
+
+```text
+T093 policy unit tests || T094 cancellation transactions || T095 correction transactions || T096 API tests || T097 frontend tests
+After APIs: T103 employee cancellation UI || T104 administrator correction UI
+```
+
+### User Story 5
+
+```text
+T106 reporting repository tests || T107 audit query tests || T108 API contract tests || T109 frontend tests
+After foundation: T110 organization query || T111 summary query || T112 audit query
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First
+
+1. Complete Setup and Foundational phases.
+2. Complete US1 in test-first order.
+3. Stop at the US1 checkpoint and demonstrate login, calculation, atomic reservation, overlap prevention, history, dashboard, and employee calendar.
+4. Add the remaining P1 stories US2 and US3 to complete the operational leave workflow.
+
+### Incremental Delivery
+
+1. **Foundation**: runnable secured applications and migrated PostgreSQL schema.
+2. **US1**: employee submission/tracking MVP.
+3. **US2**: direct-manager decisions and team view.
+4. **US3**: administrator-managed organization configuration.
+5. **US4**: balance-safe cancellation and exceptional correction.
+6. **US5**: organization reports and audit review.
+7. **Polish**: full contract, security, accessibility, performance, quickstart, and end-to-end validation.
+
+## Notes
+
+- `[P]` marks only tasks that operate in different files with no unfinished same-phase dependency.
+- State-changing services must keep request, slots, balance summaries, immutable movements, status history, and audit writes in one transaction.
+- Managers have direct-report scope only and can never self-approve; administrator correction is a separate, reasoned path.
+- Applied Flyway migrations are immutable; later schema changes require new forward migrations.
+- Organization rules remain configured data—never hard-code leave counts, weekly offs, holidays, rejection comments, or cancellation cutoffs.

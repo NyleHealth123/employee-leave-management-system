@@ -1,36 +1,40 @@
 # Specification-to-Design Traceability
 
-This matrix keeps Phase 1 design tied to the approved specification. Task generation should retain these groupings and add task/test identifiers.
+This matrix keeps Phase 1 design tied to the approved specification. Task/test IDs are design-stage mappings from the existing `tasks.md`; `$speckit-tasks` reconciliation must retain or deliberately supersede them when it incorporates this updated design.
 
-| Specification coverage | Design location | Contract or verification evidence |
+| Specification coverage | Design location | Contract, verification, and current task/test mapping |
 |---|---|---|
-| FR-001, FR-002, FR-003: authentication, logout, roles, ownership | `plan.md` Authentication and authorization; `data-model.md` UserAccount/Role/EmployeeProfile | `openapi.yaml` Authentication and Employee endpoints; `authorization.md`; quickstart scenario 1 |
-| FR-004, FR-005: dashboard, leave types, balances | Frontend design; LeaveType/LeavePolicyVersion/LeaveBalance | Employee dashboard, leave balance, and leave type operations; frontend/API tests |
-| FR-006, FR-007, FR-008: request input, calculation, validation | LeaveRequest, LeaveRequestSlot; calculation rules | Calculate/submit operations; quickstart scenario 2 |
-| FR-009: active overlap prevention | Transaction strategy; active occupancy slots and partial unique index | `409 LEAVE_OVERLAP`; repository/concurrency tests; quickstart scenario 3 |
-| FR-010, FR-011: pending reservation and history | LeaveBalance, LeaveRequestBalanceLine, LeaveBalanceMovement | Submit response and insufficient-balance conflict; scenarios 2–3 |
-| FR-012, FR-013: states and cancellation cutoff | State transition table; organization timezone and policy cutoff | Cancel operation and `CANCELLATION_CUTOFF_PASSED`; scenario 5 |
-| FR-014, FR-015, FR-016, FR-017, FR-018: manager queue, detail, decisions, scope, calendar | Layered authorization; EmployeeProfile manager relation | Manager endpoints; `authorization.md`; scenario 4 |
-| FR-019: employees and manager assignments | People module; EmployeeProfile | Administrator employee operations; scenario 6 |
-| FR-020, FR-021, FR-022: configurable leave policies, weekly offs, holidays, allowances | LeaveType, LeavePolicyVersion, PolicyWeeklyOff, CompanyHoliday, LeaveBalance | Administrator leave type/policy/holiday/balance-allocation APIs; scenarios 2 and 6 |
-| FR-023: auditable balance adjustment | LeaveBalanceMovement and AuditEvent | Balance adjustment API requiring reason; scenario 6 |
-| FR-024, FR-025, FR-026: approval conversion, release/restore, revalidation | Transaction strategy; balance-line state transitions | Approve/reject/cancel contracts; transactional tests; scenarios 4–5 |
-| FR-027, FR-028: audit and status trace | AuditEvent, LeaveRequestStatusHistory, append-only constraints | Audit listing API; rollback verification; scenarios 6–7 |
-| FR-029, FR-030: organization requests and summaries | Reporting module and request indexes | Administrator request/report operations; scenario 6 |
-| FR-031: employee/team calendars and holidays | Calendar module; request slots and holidays | Employee and manager calendar/reference endpoints |
-| FR-032: clear safe errors | Shared problem schema and business error code table | API/security/frontend error tests |
-| FR-033, FR-034: configurable, consistent policy application | Effective policy model and shared domain calculation service | Preview, submit, approval, cancellation, calendar and report tests |
-| FR-035: exceptional administrator correction | Dedicated transactional correction path and compensating movements | Correction endpoint requiring reason; scenario 6 |
+| FR-001–FR-003: authentication, logout, roles, ownership | `plan.md` authorization; UserAccount/Role/EmployeeProfile; ownership predicates | Auth/employee contracts; `authorization.md`; quickstart 1; T027–T033, T038, T047, T049, T058, T120 (tests T027, T032, T038, T058, T120) |
+| FR-004–FR-005: dashboard, leave types, balances | Frontend design; LeaveType/LeavePolicyVersion/LeaveBalance | Dashboard/balance/type operations; T038, T042–T043, T048–T050, T054 (tests T038, T039) |
+| FR-006–FR-008: request input, calculation, validation | LeaveRequest/Slot; calculation rules | Calculate/submit operations; quickstart 2; T035, T038–T045, T049, T052, T057 (tests T035, T038, T039, T057) |
+| FR-009: active overlap prevention | Transaction strategy; active-slot partial unique index | `409 LEAVE_OVERLAP`; quickstart 3; T036–T038, T045–T046 (tests T036–T038) |
+| FR-010–FR-011: mandatory tracked-balance reservation and history | LeaveBalance/BalanceLine/Movement; no separate validation flag | Submit/insufficient-balance contracts; quickstart 2–3; T037–T039, T043, T045, T047, T049, T052–T053 (tests T037–T039) |
+| FR-012–FR-013: states, ownership, cancellation cutoff/version | Exact transition table; organization timezone | Required-version cancel contract; quickstart 5; T093–T105 (tests T093–T097, T105) |
+| FR-014–FR-018: manager queue/detail/decisions/scope/calendar | Direct-report predicate; self-decision guard | Manager endpoints; quickstart 4; T058–T072 (tests T058–T061, T072) |
+| FR-019: employees and manager assignments | People module; EmployeeProfile version | Required-version administrator employee contract; quickstart 6; T073, T077, T079–T080, T085, T087, T092 (tests T073, T077, T092) |
+| FR-020–FR-022: policies, sole balance allocation, holiday soft deactivation | LeaveType/PolicyWeeklyOff/CompanyHoliday/LeaveBalance | Required-version type/policy/holiday contracts; quickstart 2, 6; T074, T076–T077, T081–T083, T085, T088–T089, T092 (tests T074, T076–T077, T092) |
+| FR-023: auditable balance adjustment | LeaveBalanceMovement/AuditEvent; balance lock/version | Adjustment contract; quickstart 6; T075, T077, T084–T085, T090 (tests T075, T077) |
+| FR-024–FR-026: conversion, release/restore, revalidation | Transaction/lock table; balance-line transitions | Approve/reject/cancel contracts; quickstart 4–5; T059, T064–T065, T072, T121 (tests T059, T072, T121) |
+| FR-027–FR-028: immutable audit and status trace | AuditEvent/StatusHistory; append-only constraints | Audit API and rollback; quickstart 4–8; T037, T045, T053, T059, T064–T065, T075, T083–T084, T094–T095, T099–T100, T107, T112–T115, T121 (tests T037, T059, T075, T094–T095, T107, T121) |
+| FR-029–FR-030: organization requests and summaries | Reporting module/request indexes | Administrator report contracts; quickstart 6; T106, T108, T110–T117 (tests T106, T108–T109, T117) |
+| FR-031: employee/team calendars and holidays | Dedicated EmployeeTeamCalendarEntry; exact same-manager/active/status predicate | Privacy-safe employee schema and manager schema; quickstart 7; T038, T042, T048–T049, T055, T057 (tests T038, T057; cross-cutting T120, T127) |
+| FR-032: safe errors and stale semantics | Shared Problem schema; `STALE_VERSION` behavior | API/security/frontend errors; T025–T026, T030–T031, T046, T051, T063, T096, T101 (tests T025, T030, T096) |
+| FR-033–FR-034: configurable/consistent rules | Effective policy/shared calculator | Preview/submit/decision/cancel/report checks; T035, T041, T074, T081, T088, T092 (tests T035, T074, T092) |
+| FR-035: exact administrator corrections | Three-row transition table; correction transaction/version | Closed correction-action enum; quickstart 6; T095–T101, T104–T105, T121 (tests T095–T097, T105, T121) |
 
 ## Success criteria verification
 
-| Success criterion | Planned evidence |
+| Success criterion | Planned evidence and current task/test mapping |
 |---|---|
-| SC-001 | Timed employee usability test using the responsive request flow |
-| SC-002 | Parameterized domain and PostgreSQL integration tests for full/half days, holidays, and weekly offs |
-| SC-003 | Security/API matrix for every role, ownership case, manager scope, and self-approval |
-| SC-004 | Transactional invariants and ledger reconciliation for approved, rejected, and cancelled requests |
-| SC-005 | Timed manager usability test for queue-to-decision flow |
-| SC-006 | Administrator configuration acceptance scenario showing downstream calculation/scope effects |
-| SC-007 | Audit assertion for every required action plus rollback injection tests |
-| SC-008 | User evaluation of validation/problem messages and accessible field-error presentation |
+| SC-001 | Timed employee request flow: T039, T052, T128 |
+| SC-002 | Calculation unit/integration/acceptance evidence: T035, T041, T044, T057, T127 |
+| SC-003 | Full authorization/no-mutation matrix: T027, T038, T058, T060, T077, T096, T108, T120, T127 |
+| SC-004 | Transaction/ledger reconciliation including rejection release: T037, T059, T075, T094, T095, T121, T124, T127 |
+| SC-005 | Timed manager queue-to-decision flow: T061, T069, T128 |
+| SC-006 | Administrator configuration downstream effects: T073–T092, T127 |
+| SC-007 | Required audit and rollback evidence: T037, T059, T075, T094, T095, T107, T121, T127 |
+| SC-008 | Safe/actionable validation and accessibility: T025, T030, T039, T061, T078, T097, T109, T122, T128 |
+| SC-009 | Same-manager active-employee calendar scope and exact field allowlist: T038, T048, T055, T120, T127 |
+| SC-010 | Exact correction whitelist/effects and forbidden no-mutation cases: T095–T101, T104–T105, T120, T121, T127 |
+
+Implementation evidence (commits, executed test results, and acceptance-run outcomes) is intentionally appended later; known design-stage mappings are not deferred.
