@@ -1,0 +1,7 @@
+import { render, screen } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../test/setup'
+import { EmployeeDashboardPage } from './EmployeeDashboardPage'
+import { expect, it } from 'vitest'
+it('renders balances, pending leave, approved leave, and holidays',async()=>{server.use(http.get('/api/employee/dashboard',()=>HttpResponse.json({balances:[{id:'b',leaveTypeId:'t',leaveTypeName:'Annual',periodStart:'2026-01-01',periodEnd:'2026-12-31',entitledDays:20,reservedDays:1,consumedDays:2,availableDays:17,version:0}],pendingRequests:[{id:'r',employeeId:'e',employeeName:'Asha',leaveTypeId:'t',leaveTypeName:'Annual',startDate:'2026-09-01',endDate:'2026-09-01',durationMode:'FULL_DAY',chargeableDays:1,status:'PENDING',submittedAt:'2026-08-19T00:00:00Z',version:0}],approvedUpcomingLeave:[],upcomingHolidays:[{id:'h',date:'2026-10-02',name:'Holiday',active:true,version:0}]})));render(<EmployeeDashboardPage/>);expect(await screen.findByText(/17/)).toBeInTheDocument();expect(screen.getByText('PENDING')).toBeInTheDocument();expect(screen.getByText(/Holiday/)).toBeInTheDocument()})
+

@@ -1,0 +1,8 @@
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../test/setup'
+import { LeaveRequestFormPage } from './LeaveRequestFormPage'
+import { expect, it } from 'vitest'
+it('previews configured exclusions and enables a valid submission',async()=>{const typeId=crypto.randomUUID();server.use(http.get('/api/leave-types',()=>HttpResponse.json([{id:typeId,code:'ANNUAL',name:'Annual leave',tracksBalance:true,allowsHalfDay:true,cancellationCutoffDays:1}])),http.get('/api/employee/leave-balances',()=>HttpResponse.json([{id:crypto.randomUUID(),leaveTypeId:typeId,leaveTypeName:'Annual leave',periodStart:'2026-01-01',periodEnd:'2026-12-31',entitledDays:20,reservedDays:0,consumedDays:0,availableDays:20,version:0}])),http.get('/api/auth/csrf',()=>HttpResponse.json({token:'csrf',headerName:'X-XSRF-TOKEN'})),http.post('/api/employee/leave-requests/calculate',()=>HttpResponse.json({chargeableDays:1,chargeableDates:['2026-09-01'],excludedDates:[{date:'2026-09-02',reason:'HOLIDAY'}],tracksBalance:true,availableDays:20,canSubmit:true,messages:[]})));render(<LeaveRequestFormPage/>);await screen.findByText('Annual leave');const user=userEvent.setup();await user.type(screen.getByLabelText('Start date'),'2026-09-01');await user.type(screen.getByLabelText('End date'),'2026-09-02');await user.type(screen.getByLabelText('Reason'),'Rest');await user.click(screen.getByRole('button',{name:'Calculate duration'}));expect(await screen.findByText('1 days')).toBeInTheDocument();expect(screen.getByText(/holiday/)).toBeInTheDocument();expect(screen.getByRole('button',{name:'Submit request'})).toBeEnabled()})
+

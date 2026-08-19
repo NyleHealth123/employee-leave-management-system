@@ -1,0 +1,14 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+app:
+  organization-time-zone: Asia/Kolkata
+
