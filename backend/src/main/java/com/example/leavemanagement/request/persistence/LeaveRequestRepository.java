@@ -13,6 +13,12 @@ public interface LeaveRequestRepository extends JpaRepository<LeaveRequestEntity
  Page<LeaveRequestEntity> findAllByEmployeeIdAndStatus(UUID employeeId,String status,Pageable pageable);
  Optional<LeaveRequestEntity> findByIdAndEmployeeId(UUID id,UUID employeeId);
  Optional<LeaveRequestEntity> findByEmployeeIdAndIdempotencyKey(UUID employeeId,String key);
+ @Lock(LockModeType.PESSIMISTIC_WRITE)
+ @Query("select r from LeaveRequestEntity r where r.id=:id and r.employeeId=:employeeId")
+ Optional<LeaveRequestEntity> lockOwned(@Param("id") UUID id,@Param("employeeId") UUID employeeId);
+ @Lock(LockModeType.PESSIMISTIC_WRITE)
+ @Query("select r from LeaveRequestEntity r where r.id=:id")
+ Optional<LeaveRequestEntity> lockById(@Param("id") UUID id);
  java.util.List<LeaveRequestEntity> findTop20ByEmployeeIdAndStatusOrderByStartDateAsc(UUID employeeId,String status);
  @Query("select r from LeaveRequestEntity r where r.employeeId in (select e.id from EmployeeProfileEntity e where e.manager.id=:managerId) order by r.submittedAt desc")
  Page<LeaveRequestEntity> findDirectReports(@Param("managerId") UUID managerId, Pageable pageable);

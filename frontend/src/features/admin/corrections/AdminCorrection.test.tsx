@@ -1,0 +1,14 @@
+import { describe, expect, it, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../../test/setup'
+import { AdminCorrectionDialog } from './AdminCorrectionDialog'
+import type { LeaveRequestDetail, LeaveStatus } from '../../../shared/types/leave'
+const request=(status:LeaveStatus):LeaveRequestDetail=>({id:'r1',employeeId:'e1',employeeName:'E',leaveTypeId:'t1',leaveTypeName:'Annual',startDate:'2026-09-01',endDate:'2026-09-01',durationMode:'FULL_DAY',chargeableDays:1,status,submittedAt:'2026-08-20T00:00:00Z',version:3,reason:'x',decisionComment:null,canCancel:false,cancellationBlockedReason:null,statusHistory:[]})
+describe('AdminCorrectionDialog',()=>{
+ it.each([['PENDING','CANCEL_PENDING'],['APPROVED','CANCEL_APPROVED'],['REJECTED','REOPEN_REJECTED']] as const)('shows only %s action',(status,action)=>{render(<AdminCorrectionDialog request={request(status)} onUpdated={()=>{}}/>);const dialog=screen.getByRole('dialog',{name:'Administrator correction'});expect(dialog).toHaveTextContent(`Action: ${action}`);for(const other of ['CANCEL_PENDING','CANCEL_APPROVED','REOPEN_REJECTED'])if(other!==action)expect(dialog).not.toHaveTextContent(other)})
+ it('hides terminal corrections',()=>{const {container}=render(<AdminCorrectionDialog request={request('CANCELLED')} onUpdated={()=>{}}/>);expect(container).toBeEmptyDOMElement()})
+ it('requires reason and submits action/version',async()=>{let body:unknown;server.use(http.get('/api/auth/csrf',()=>HttpResponse.json({token:'csrf'})),http.post('/api/admin/leave-requests/r1/corrections',async({request:r})=>{body=await r.json();return HttpResponse.json(request('CANCELLED'))}));render(<AdminCorrectionDialog request={request('PENDING')} onUpdated={()=>{}}/>);const user=userEvent.setup();expect(screen.getByRole('button',{name:'Apply correction'})).toBeDisabled();await user.type(screen.getByLabelText('Reason'),' Fix ');await user.click(screen.getByRole('button',{name:'Apply correction'}));expect(body).toEqual({action:'CANCEL_PENDING',reason:'Fix',expectedVersion:3})})
+ it('reloads on stale version',async()=>{const reload=vi.fn();server.use(http.get('/api/auth/csrf',()=>HttpResponse.json({token:'csrf'})),http.post('/api/admin/leave-requests/r1/corrections',()=>HttpResponse.json({status:409,code:'STALE_VERSION',detail:'stale'},{status:409})));render(<AdminCorrectionDialog request={request('REJECTED')} onUpdated={()=>{}} onReload={reload}/>);const user=userEvent.setup();await user.type(screen.getByLabelText('Reason'),'reason');await user.click(screen.getByRole('button',{name:'Apply correction'}));expect(await screen.findByRole('alert')).toHaveTextContent(/reload/i);expect(reload).toHaveBeenCalledOnce()})
+})
