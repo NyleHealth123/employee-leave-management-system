@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 public interface LeaveRequestRepository extends JpaRepository<LeaveRequestEntity, UUID> {
  Page<LeaveRequestEntity> findAllByEmployeeId(UUID employeeId, Pageable pageable);
+ Page<LeaveRequestEntity> findAllByEmployeeIdAndStatus(UUID employeeId,String status,Pageable pageable);
  Optional<LeaveRequestEntity> findByIdAndEmployeeId(UUID id,UUID employeeId);
  Optional<LeaveRequestEntity> findByEmployeeIdAndIdempotencyKey(UUID employeeId,String key);
  java.util.List<LeaveRequestEntity> findTop20ByEmployeeIdAndStatusOrderByStartDateAsc(UUID employeeId,String status);

@@ -1,7 +1,9 @@
 package com.example.leavemanagement.shared.security;
 
 import com.example.leavemanagement.shared.api.ProblemResponse;
+import com.example.leavemanagement.shared.api.CorrelationIdFilter;
 import tools.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.*;
 import org.springframework.http.MediaType;
@@ -26,10 +28,10 @@ public class SecurityConfiguration {
         http.csrf(c->c.csrfTokenRepository(csrf))
             .securityContext(c->c.securityContextRepository(contexts).requireExplicitSave(true))
             .authorizeHttpRequests(a->a.requestMatchers("/api/auth/csrf","/api/auth/login","/actuator/health").permitAll().requestMatchers("/api/employee/**","/api/leave-types","/api/holidays").hasRole("EMPLOYEE").anyRequest().authenticated())
-            .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->write(mapper,res,401,"AUTHENTICATION_REQUIRED","Authentication is required")).accessDeniedHandler((req,res,ex)->write(mapper,res,403,"ACCESS_DENIED","Access is denied")))
+            .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->write(mapper,req,res,401,"AUTHENTICATION_REQUIRED","Authentication is required")).accessDeniedHandler((req,res,ex)->write(mapper,req,res,403,"ACCESS_DENIED","Access is denied")))
             .sessionManagement(s->s.sessionFixation(f->f.changeSessionId()))
             .logout(l->l.disable()).httpBasic(h->h.disable()).formLogin(f->f.disable());
         return http.build();
     }
-    private static void write(ObjectMapper mapper,HttpServletResponse response,int status,String code,String detail)throws java.io.IOException{response.setStatus(status);response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);mapper.writeValue(response.getOutputStream(),ProblemResponse.of(status,code,detail,"security"));}
+    private static void write(ObjectMapper mapper,HttpServletRequest request,HttpServletResponse response,int status,String code,String detail)throws java.io.IOException{var correlation=request.getAttribute(CorrelationIdFilter.ATTRIBUTE);var id=correlation==null?"unavailable":correlation.toString();response.setStatus(status);response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);mapper.writeValue(response.getOutputStream(),ProblemResponse.of(status,code,detail,id));}
 }
