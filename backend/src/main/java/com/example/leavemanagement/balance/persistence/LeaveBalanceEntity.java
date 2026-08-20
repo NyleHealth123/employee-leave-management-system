@@ -20,6 +20,9 @@ public class LeaveBalanceEntity {
     @Column(name="created_at") private Instant createdAt;
     @Column(name="updated_at") private Instant updatedAt;
     protected LeaveBalanceEntity() {}
+    public static LeaveBalanceEntity allocate(UUID id,UUID employeeId,UUID leaveTypeId,LocalDate from,LocalDate to,int units,Instant now){var e=new LeaveBalanceEntity();e.id=id;e.employeeId=employeeId;e.leaveTypeId=leaveTypeId;e.periodStart=from;e.periodEnd=to;e.allocatedUnits=units;e.createdAt=now;e.updatedAt=now;return e;}
+    public void adjust(int units){if(getAvailableUnits()+units<0)throw new IllegalStateException("adjustment would make balance negative");adjustmentUnits+=units;updatedAt=Instant.now();}
+    public int getAdjustmentUnits(){return adjustmentUnits;}
     public UUID getId(){return id;} public UUID getEmployeeId(){return employeeId;} public UUID getLeaveTypeId(){return leaveTypeId;}
     public LocalDate getPeriodStart(){return periodStart;} public LocalDate getPeriodEnd(){return periodEnd;} public int getAllocatedUnits(){return allocatedUnits;}
     public int getReservedUnits(){return reservedUnits;} public int getConsumedUnits(){return consumedUnits;} public int getAvailableUnits(){return allocatedUnits+adjustmentUnits-reservedUnits-consumedUnits;}

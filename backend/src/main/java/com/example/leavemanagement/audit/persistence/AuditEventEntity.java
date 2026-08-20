@@ -19,6 +19,7 @@ public class AuditEventEntity {
     @JdbcTypeCode(SqlTypes.JSON) @Column(name="after_data",columnDefinition="jsonb") private String afterData;
     @Column(name="request_correlation_id") private String requestCorrelationId;
     protected AuditEventEntity() {}
+    public static AuditEventEntity administration(UUID actorId,String action,String entityType,UUID entityId,String reason,String before,String after){var e=new AuditEventEntity();e.id=UUID.randomUUID();e.actorUserId=actorId;e.action=action;e.entityType=entityType;e.entityId=entityId;e.occurredAt=Instant.now();e.reason=reason;e.beforeData=before;e.afterData=after;return e;}
     public static AuditEventEntity submitted(UUID actorId,UUID requestId){var e=new AuditEventEntity();e.id=UUID.randomUUID();e.actorUserId=actorId;e.action="LEAVE_SUBMITTED";e.entityType="LEAVE_REQUEST";e.entityId=requestId;e.occurredAt=Instant.now();e.afterData="{\"status\":\"PENDING\"}";return e;}
     public static AuditEventEntity decision(UUID actorId,UUID requestId,String action,String from,String to,String reason){var e=new AuditEventEntity();e.id=UUID.randomUUID();e.actorUserId=actorId;e.action=action;e.entityType="LEAVE_REQUEST";e.entityId=requestId;e.occurredAt=Instant.now();e.reason=reason;e.beforeData="{\"status\":\""+from+"\"}";e.afterData="{\"status\":\""+to+"\"}";return e;}
 }

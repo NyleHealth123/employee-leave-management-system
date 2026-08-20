@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.Collection;
 import java.util.UUID;
 
 @Entity @Table(name="leave_policy_version")
@@ -25,6 +26,8 @@ public class LeavePolicyVersionEntity {
     @CollectionTable(name="policy_weekly_off", joinColumns=@JoinColumn(name="policy_version_id"))
     @Column(name="iso_day") private Set<Integer> weeklyOffDays = new LinkedHashSet<>();
     protected LeavePolicyVersionEntity() {}
+    public static LeavePolicyVersionEntity create(UUID id,LeaveTypeEntity type,int versionNumber,LocalDate from,LocalDate to,boolean tracks,boolean half,String weekly,String holiday,boolean rejection,int cutoff,Collection<Integer> days,Instant now){var e=new LeavePolicyVersionEntity();e.id=id;e.leaveType=type;e.versionNumber=versionNumber;e.effectiveFrom=from;e.effectiveTo=to;e.tracksBalance=tracks;e.allowsHalfDay=half;e.weeklyOffTreatment=weekly;e.holidayTreatment=holiday;e.rejectionCommentRequired=rejection;e.cancellationCutoffDays=cutoff;e.weeklyOffDays=new LinkedHashSet<>(days);e.createdAt=now;return e;}
+    public int getVersionNumber(){return versionNumber;} public LocalDate getEffectiveFrom(){return effectiveFrom;} public LocalDate getEffectiveTo(){return effectiveTo;}
     public UUID getId(){return id;} public LeaveTypeEntity getLeaveType(){return leaveType;} public boolean isTracksBalance(){return tracksBalance;}
     public boolean isAllowsHalfDay(){return allowsHalfDay;} public boolean excludesWeeklyOffs(){return "EXCLUDE".equals(weeklyOffTreatment);}
     public boolean excludesHolidays(){return "EXCLUDE".equals(holidayTreatment);} public Set<Integer> getWeeklyOffDays(){return Set.copyOf(weeklyOffDays);} public int getCancellationCutoffDays(){return cancellationCutoffDays;}

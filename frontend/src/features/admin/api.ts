@@ -1,0 +1,15 @@
+import { api } from '../../shared/api/apiClient'
+import type { Balance, Employee, EmployeePage, Holiday, LeaveTypeDetail, Role } from '../../shared/types/admin'
+export const adminEmployees = (page=0,size=20) => api<EmployeePage>(`/admin/employees?page=${page}&size=${size}`)
+export const createEmployee = (body: {employeeNumber:string;displayName:string;email:string;login:string;initialPassword:string;managerId:string|null;roles:Role[];active:boolean}) => api<Employee>('/admin/employees',{method:'POST',body:JSON.stringify(body)})
+export const updateEmployee = (id:string,body: {employeeNumber:string;displayName:string;email:string;login:string;managerId:string|null;roles:Role[];active:boolean;expectedVersion:number}) => api<Employee>(`/admin/employees/${id}`,{method:'PATCH',body:JSON.stringify(body)})
+export const adminLeaveTypes = () => api<LeaveTypeDetail[]>('/admin/leave-types')
+export const createLeaveType = (body:object) => api<LeaveTypeDetail>('/admin/leave-types',{method:'POST',body:JSON.stringify(body)})
+export const updateLeaveType = (id:string,body:object) => api<LeaveTypeDetail>(`/admin/leave-types/${id}`,{method:'PATCH',body:JSON.stringify(body)})
+export const createPolicy = (id:string,body:object) => api(`/admin/leave-types/${id}/policies`,{method:'POST',body:JSON.stringify(body)})
+export const adminHolidays = (from:string,to:string) => api<Holiday[]>(`/admin/holidays?from=${from}&to=${to}`)
+export const createHoliday = (body:object) => api<Holiday>('/admin/holidays',{method:'POST',body:JSON.stringify(body)})
+export const updateHoliday = (id:string,body:object) => api<Holiday>(`/admin/holidays/${id}`,{method:'PATCH',body:JSON.stringify(body)})
+export const employeeBalances = (id:string) => api<Balance[]>(`/admin/employees/${id}/leave-balances`)
+export const allocateBalance = (id:string,body:object) => api<Balance>(`/admin/employees/${id}/leave-balances`,{method:'POST',body:JSON.stringify(body)})
+export const adjustBalance = (employeeId:string,balanceId:string,body:object) => api<Balance>(`/admin/employees/${employeeId}/leave-balances/${balanceId}/adjustments`,{method:'POST',body:JSON.stringify(body)})
