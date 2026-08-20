@@ -22,6 +22,8 @@ This matrix keeps Phase 1 design tied to the approved specification. Task/test I
 | FR-033–FR-034: configurable/consistent rules | Effective policy/shared calculator | Preview/submit/decision/cancel/report checks; T035, T041, T074, T081, T088, T092 (tests T035, T074, T092) |
 | FR-035: exact administrator corrections | Three-row transition table; correction transaction/version | Closed correction-action enum; quickstart 6; T095–T101, T104–T105, T121 (tests T095–T097, T105, T121) |
 
+| FR-036: repeatable local-demo organization dataset | Profile-isolated local-demo Flyway location; deterministic existing-model seed data; environment-only credentials; fail-closed production boundaries | T118 creates `backend/src/main/resources/db/local-demo/R__local_demo_data.sql` with at least 50 (preferably approximately 50–60) synthetic employees, administrator/manager/employee accounts, multiple managers with direct reports, realistic reporting relationships, leave types/policies, supported weekly offs, holidays, balances, and representative `PENDING`/`APPROVED`/`REJECTED`/`CANCELLED` requests; T124 exercises employee/manager/administrator workflows and reporting/audit usability; T125 safely resets/recreates the dataset; T126 runs complete verification; T127 verifies a clean-volume quickstart; T131 audits final evidence, including no duplicates/corruption, production isolation, credential secrecy, and no hardcoded demo passwords. |
+
 ## Success criteria verification
 
 | Success criterion | Planned evidence and current task/test mapping |
@@ -36,5 +38,7 @@ This matrix keeps Phase 1 design tied to the approved specification. Task/test I
 | SC-008 | Safe/actionable validation and accessibility: T025, T030, T039, T061, T078, T097, T109, T122, T128 |
 | SC-009 | Same-manager active-employee calendar scope and exact field allowlist: T038, T048, T055, T120, T127 |
 | SC-010 | Exact correction whitelist/effects and forbidden no-mutation cases: T095–T101, T104–T105, T120, T121, T127 |
+
+| SC-011 | Local-demo acceptance: T118 verifies at least 50 (preferably approximately 50–60) synthetic employees, an administrator, multiple managers with direct reports, employee accounts, valid reporting relationships, leave types/policies, supported weekly offs, holidays, balances, and representative `PENDING`/`APPROVED`/`REJECTED`/`CANCELLED` requests; T124 verifies employee, manager, administrator, reporting, audit, and E2E usability; T125 verifies deterministic reset/recreation without unexpected duplicates or corruption and refuses production; T126 runs the full verification set; T127 repeats clean-volume acceptance; T131 records production isolation, credential secrecy, and no hardcoded demo-password evidence. |
 
 Implementation evidence (commits, executed test results, and acceptance-run outcomes) is intentionally appended later; known design-stage mappings are not deferred.

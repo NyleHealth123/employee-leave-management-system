@@ -1,0 +1,12 @@
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/local-demo
+    placeholders:
+      demo_admin_password_hash: ${DEMO_ADMIN_PASSWORD_HASH}
+      demo_manager_password_hash: ${DEMO_MANAGER_PASSWORD_HASH}
+      demo_employee_password_hash: ${DEMO_EMPLOYEE_PASSWORD_HASH}
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false

@@ -106,6 +106,19 @@ An administrator views leave requests throughout the organization and basic summ
 1. **Given** leave requests exist across the organization, **When** an administrator views all leave requests, **Then** they can identify each request's employee, leave type, dates, duration, and status.
 2. **Given** an administrator selects a reporting period, **When** they view basic leave reports, **Then** they can see totals by request status and leave type for that period.
 
+### Local-demo dataset verification
+
+The local-demo environment provides a realistic, synthetic organization dataset for demonstration, testing, reporting, manager workflows, administrator workflows, and end-to-end verification without changing production employee-provisioning requirements.
+
+**Independent Test**: On a clean local-demo reset, the organization can sign in with the available demo roles, exercise employee and manager workflows, inspect administrator reports and audit history, and repeat the setup without duplicate or corrupt data.
+
+**Acceptance Scenarios**:
+
+1. **Given** the local-demo profile is initialized from a clean environment, **When** the dataset is loaded, **Then** it contains at least 50 and preferably approximately 50–60 synthetic employee records, at least one administrator account, multiple manager accounts, and employees assigned to realistic manager reporting relationships.
+2. **Given** local-demo credentials are needed, **When** a demo user signs in, **Then** the credentials are supplied only through local environment configuration and no plaintext password or secret is stored in seed data, source code, production configuration, logs, or API responses.
+3. **Given** the local-demo dataset is loaded, **When** users exercise the completed workflows, **Then** the dataset contains related leave types, policies, applicable weekly offs, holidays, employee balances, and valid leave requests across representative `PENDING`, `APPROVED`, `REJECTED`, and `CANCELLED` statuses, with historical, audit, and reporting data created only through the authoritative approved seed/domain mechanisms.
+4. **Given** the local-demo setup is run again or reset for end-to-end testing, **When** the supported setup completes, **Then** it recreates the same usable dataset without unexpected duplication or corruption and never loads demo data under production configuration.
+
 ### Edge Cases
 
 - A request with an end date before its start date, a missing required field, or a date that cannot support the selected duration option is rejected with a clear error.
@@ -160,6 +173,7 @@ An administrator views leave requests throughout the organization and basic summ
 - **FR-033**: The system MUST keep organization-specific leave rules configurable and MUST NOT rely on fixed leave counts, fixed weekly-off days, or fixed cancellation rules.
 - **FR-034**: The system MUST apply the same configured calculation and balance rules consistently wherever it previews, submits, approves, cancels, reports, or displays a leave request.
 - **FR-035**: The system MUST restrict administrator exceptional status correction to `Pending` to `Cancelled`, which releases any reserved balance and removes pending calendar occupancy; `Approved` to `Cancelled`, which restores any consumed balance and removes approved calendar occupancy; and `Rejected` to `Pending`, which revalidates the current leave policy, dates, overlap, and available balance, reserves the required balance again for a balance-tracked request, and restores pending calendar occupancy. Every permitted correction MUST require a reason, apply its balance and calendar effects atomically, and create immutable audit history. The system MUST reject same-status corrections and every other correction transition, including `Cancelled` to `Approved`, `Rejected` to `Approved`, `Approved` to `Pending`, and `Cancelled` to `Pending`. Comments and balances MUST use their existing dedicated auditable mechanisms, and managers MUST never have administrative correction capability.
+- **FR-036**: The local-demo environment MUST provide a repeatable, synthetic organization dataset containing at least 50 and preferably approximately 50–60 employee records for demonstration, testing, reporting, manager workflows, administrator workflows, and end-to-end verification. It MUST include at least one administrator account, multiple manager accounts, employee accounts, and realistic employee-to-manager reporting relationships with direct reports. It MUST include enough related data to exercise the completed system, including leave types, leave policies, applicable weekly offs, holidays, employee leave balances, and valid leave requests across representative `PENDING`, `APPROVED`, `REJECTED`, and `CANCELLED` statuses, plus representative historical, audit, and reporting data created only through the authoritative approved seed or domain mechanisms. Demo data MUST be synthetic, MUST NOT add fields outside the approved data model merely for realism, and MUST be strictly isolated to the local-demo profile so it fails closed and never loads under production configuration. Demo passwords and secrets MUST be supplied only through local environment configuration and MUST NOT be hardcoded in SQL, source code, production configuration, logs, or API responses. The setup MUST support clean reset and repeatable recreation without unexpected duplication or corruption, and this demo/test requirement MUST NOT change production employee provisioning requirements.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -187,6 +201,7 @@ An administrator views leave requests throughout the organization and basic summ
 - **SC-008**: At least 90% of tested users rate validation and error messages as clear enough to identify the action needed to proceed.
 - **SC-009**: In authorization and privacy acceptance testing, 100% of employee team-calendar results obey the same-direct-manager and active-employee scope and expose only display name, leave dates, and status for coworker entries.
 - **SC-010**: In acceptance testing, 100% of attempted administrative status corrections either complete one permitted transition with the required balance, calendar, and immutable-audit effects or reject the action without changing request, balance, calendar, or audit state; managers cannot perform any such correction.
+- **SC-011**: In local-demo acceptance testing, a clean reset and recreation produces at least 50 and preferably approximately 50–60 synthetic employees, at least one administrator, multiple managers with direct reports, representative leave configuration and request statuses, and usable employee, manager, administrator, reporting, audit, and end-to-end workflows; repeating the setup produces no unexpected duplicate or corrupt records, and production configuration loads none of the demo data.
 
 ## Assumptions
 
@@ -199,3 +214,4 @@ An administrator views leave requests throughout the organization and basic summ
 - Basic reports are limited to organization leave-request totals and summaries; exporting, payroll calculations, attendance reconciliation, and advanced analytics are out of scope.
 - Payroll, attendance tracking, recruitment, performance management, expense management, and other HRMS modules are explicitly out of scope.
 - Secure sign-in and session handling are required, but the specific identity method is a planning-stage decision.
+- The local-demo dataset is a test/demo-only fixture isolated from production; its credentials are supplied through local environment configuration, and its employee population is synthetic rather than real personal data.
