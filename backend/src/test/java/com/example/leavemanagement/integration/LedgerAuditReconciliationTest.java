@@ -1,0 +1,3 @@
+package com.example.leavemanagement.integration;
+import com.example.leavemanagement.balance.persistence.LeaveBalanceEntity;import org.junit.jupiter.api.Test;import java.time.*;import java.util.*;import static org.assertj.core.api.Assertions.*;
+class LedgerAuditReconciliationTest { @Test void restoringConsumedUnitsReturnsThemToAvailableBalance(){var b=LeaveBalanceEntity.allocate(UUID.randomUUID(),UUID.randomUUID(),UUID.randomUUID(),LocalDate.of(2026,1,1),LocalDate.of(2026,12,31),4,Instant.now());b.reserve(2);b.consumeReserved(2);assertThat(b.getConsumedUnits()).isEqualTo(2);b.restoreConsumed(2);assertThat(b.getConsumedUnits()).isZero();assertThat(b.getAvailableUnits()).isEqualTo(4);}}

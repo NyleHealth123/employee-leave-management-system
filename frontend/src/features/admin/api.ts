@@ -1,5 +1,6 @@
 import { api } from '../../shared/api/apiClient'
 import type { Balance, Employee, EmployeePage, Holiday, LeaveTypeDetail, Role } from '../../shared/types/admin'
+import type { LeaveRequestDetail } from '../../shared/types/leave'
 export const adminEmployees = (page=0,size=20) => api<EmployeePage>(`/admin/employees?page=${page}&size=${size}`)
 export const createEmployee = (body: {employeeNumber:string;displayName:string;email:string;login:string;initialPassword:string;managerId:string|null;roles:Role[];active:boolean}) => api<Employee>('/admin/employees',{method:'POST',body:JSON.stringify(body)})
 export const updateEmployee = (id:string,body: {employeeNumber:string;displayName:string;email:string;login:string;managerId:string|null;roles:Role[];active:boolean;expectedVersion:number}) => api<Employee>(`/admin/employees/${id}`,{method:'PATCH',body:JSON.stringify(body)})
@@ -13,3 +14,5 @@ export const updateHoliday = (id:string,body:object) => api<Holiday>(`/admin/hol
 export const employeeBalances = (id:string) => api<Balance[]>(`/admin/employees/${id}/leave-balances`)
 export const allocateBalance = (id:string,body:object) => api<Balance>(`/admin/employees/${id}/leave-balances`,{method:'POST',body:JSON.stringify(body)})
 export const adjustBalance = (employeeId:string,balanceId:string,body:object) => api<Balance>(`/admin/employees/${employeeId}/leave-balances/${balanceId}/adjustments`,{method:'POST',body:JSON.stringify(body)})
+export type CorrectionAction = 'CANCEL_PENDING' | 'CANCEL_APPROVED' | 'REOPEN_REJECTED'
+export const correctLeaveRequest = (id:string, body:{action:CorrectionAction;reason:string;expectedVersion:number}) => api<LeaveRequestDetail>(`/admin/leave-requests/${id}/corrections`,{method:'POST',body:JSON.stringify(body)})
