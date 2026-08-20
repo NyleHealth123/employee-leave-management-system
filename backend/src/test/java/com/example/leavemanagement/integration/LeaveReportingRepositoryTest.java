@@ -5,6 +5,7 @@ import com.example.leavemanagement.reporting.persistence.OrganizationLeaveReques
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.data.domain.PageRequest;
 
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SpringBootTest
 class LeaveReportingRepositoryTest extends PostgresIntegrationTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired OrganizationLeaveRequestRepository requests;
