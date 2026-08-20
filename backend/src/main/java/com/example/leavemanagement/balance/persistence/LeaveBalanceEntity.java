@@ -25,4 +25,6 @@ public class LeaveBalanceEntity {
     public int getReservedUnits(){return reservedUnits;} public int getConsumedUnits(){return consumedUnits;} public int getAvailableUnits(){return allocatedUnits+adjustmentUnits-reservedUnits-consumedUnits;}
     public long getVersion(){return version;}
     public void reserve(int units){if(units<=0||getAvailableUnits()<units)throw new IllegalStateException("insufficient balance");reservedUnits+=units;updatedAt=Instant.now();}
+    public void consumeReserved(int units){if(units<=0||reservedUnits<units)throw new IllegalStateException("invalid reservation");reservedUnits-=units;consumedUnits+=units;updatedAt=Instant.now();}
+    public void releaseReserved(int units){if(units<=0||reservedUnits<units)throw new IllegalStateException("invalid reservation");reservedUnits-=units;updatedAt=Instant.now();}
 }

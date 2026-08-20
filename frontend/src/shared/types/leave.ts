@@ -14,4 +14,4 @@ export interface LeaveRequestDetail extends LeaveRequestSummary { reason: string
 export interface Page<T> { content: T[]; page: number; size: number; totalElements: number; totalPages: number }
 export interface EmployeeDashboard { balances: LeaveBalance[]; pendingRequests: LeaveRequestSummary[]; approvedUpcomingLeave: LeaveRequestSummary[]; upcomingHolidays: Holiday[] }
 export interface TeamCalendarEntry { employeeDisplayName: string; startDate: string; endDate: string; status: 'PENDING' | 'APPROVED' }
-
+export interface ManagerCalendarEntry extends TeamCalendarEntry { durationMode: DurationMode; leaveTypeName: string }

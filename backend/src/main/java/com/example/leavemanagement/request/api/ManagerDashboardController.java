@@ -1,0 +1,3 @@
+package com.example.leavemanagement.request.api;
+import com.example.leavemanagement.request.application.ManagerDashboardService;import com.example.leavemanagement.shared.security.CurrentActorProvider;import org.springframework.web.bind.annotation.*;
+@RestController @RequestMapping("/api/manager/dashboard") public class ManagerDashboardController {private final ManagerDashboardService dashboards;private final CurrentActorProvider actors;public ManagerDashboardController(ManagerDashboardService dashboards,CurrentActorProvider actors){this.dashboards=dashboards;this.actors=actors;}@GetMapping public ManagerDashboardService.Dashboard dashboard(){return dashboards.dashboard(actors.require().employeeId());}}

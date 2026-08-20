@@ -17,5 +17,5 @@ public class LeaveBalanceMovementEntity {
     @Column(name="idempotency_key") private String idempotencyKey;
     protected LeaveBalanceMovementEntity() {}
     public static LeaveBalanceMovementEntity reservation(UUID balanceId,UUID requestId,int units,UUID actorId){var e=new LeaveBalanceMovementEntity();e.id=UUID.randomUUID();e.balanceId=balanceId;e.requestId=requestId;e.movementType="RESERVE";e.units=units;e.actorUserId=actorId;e.createdAt=Instant.now();return e;}
+    public static LeaveBalanceMovementEntity decision(UUID balanceId,UUID requestId,int units,UUID actorId,String type){var e=new LeaveBalanceMovementEntity();e.id=UUID.randomUUID();e.balanceId=balanceId;e.requestId=requestId;e.movementType=type;e.units=type.equals("RELEASE_RESERVED")?-units:units;e.actorUserId=actorId;e.createdAt=Instant.now();return e;}
 }
-

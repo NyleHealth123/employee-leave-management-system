@@ -1,0 +1,3 @@
+package com.example.leavemanagement.request.application;
+import com.example.leavemanagement.request.persistence.LeaveRequestEntity;import com.example.leavemanagement.shared.security.CurrentActor;import org.springframework.stereotype.Service;import java.util.UUID;
+@Service public class ApproveLeaveRequestService {private final ManagerDecisionService decisions;public ApproveLeaveRequestService(ManagerDecisionService decisions){this.decisions=decisions;}public LeaveRequestEntity approve(CurrentActor actor,UUID requestId,long expectedVersion,String comment){return decisions.decide(actor,requestId,expectedVersion,comment,true);}}

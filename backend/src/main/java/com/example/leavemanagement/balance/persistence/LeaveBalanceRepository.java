@@ -12,5 +12,5 @@ public interface LeaveBalanceRepository extends JpaRepository<LeaveBalanceEntity
  @Lock(LockModeType.PESSIMISTIC_WRITE)
  @Query("select b from LeaveBalanceEntity b where b.employeeId=:employeeId and b.leaveTypeId=:leaveTypeId and b.periodEnd>=:from and b.periodStart<=:to order by b.periodStart,b.id")
  List<LeaveBalanceEntity> lockApplicable(@Param("employeeId") UUID employeeId,@Param("leaveTypeId") UUID leaveTypeId,@Param("from") LocalDate from,@Param("to") LocalDate to);
+ @Lock(LockModeType.PESSIMISTIC_WRITE) java.util.Optional<LeaveBalanceEntity> findById(UUID id);
 }
-

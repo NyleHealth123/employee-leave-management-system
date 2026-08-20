@@ -1,5 +1,4 @@
 package com.example.leavemanagement.balance.persistence;
-import org.springframework.data.repository.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
-public interface LeaveBalanceMovementRepository extends Repository<LeaveBalanceMovementEntity, UUID> { LeaveBalanceMovementEntity save(LeaveBalanceMovementEntity movement); }
-
+public interface LeaveBalanceMovementRepository extends JpaRepository<LeaveBalanceMovementEntity, UUID> { }

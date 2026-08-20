@@ -7,5 +7,5 @@ import java.util.UUID;
 public interface LeaveRequestSlotRepository extends JpaRepository<LeaveRequestSlotEntity, UUID> {
  boolean existsByEmployeeIdAndLeaveDateBetweenAndActiveTrue(UUID employeeId,LocalDate from,LocalDate to);
  List<LeaveRequestSlotEntity> findAllByEmployeeIdAndLeaveDateInAndActiveTrue(UUID employeeId,Collection<LocalDate> dates);
+ List<LeaveRequestSlotEntity> findAllByRequestId(UUID requestId);
 }
-

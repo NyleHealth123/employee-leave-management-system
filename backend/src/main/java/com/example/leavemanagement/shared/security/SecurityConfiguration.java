@@ -27,7 +27,7 @@ public class SecurityConfiguration {
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http,ObjectMapper mapper,SecurityContextRepository contexts,CsrfTokenRepository csrf)throws Exception{
         http.csrf(c->c.csrfTokenRepository(csrf))
             .securityContext(c->c.securityContextRepository(contexts).requireExplicitSave(true))
-            .authorizeHttpRequests(a->a.requestMatchers("/api/auth/csrf","/api/auth/login","/actuator/health").permitAll().requestMatchers("/api/employee/**","/api/leave-types","/api/holidays").hasRole("EMPLOYEE").anyRequest().authenticated())
+            .authorizeHttpRequests(a->a.requestMatchers("/api/auth/csrf","/api/auth/login","/actuator/health").permitAll().requestMatchers("/api/employee/**","/api/leave-types","/api/holidays").hasRole("EMPLOYEE").requestMatchers("/api/manager/**").hasRole("MANAGER").anyRequest().authenticated())
             .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->write(mapper,req,res,401,"AUTHENTICATION_REQUIRED","Authentication is required")).accessDeniedHandler((req,res,ex)->write(mapper,req,res,403,"ACCESS_DENIED","Access is denied")))
             .sessionManagement(s->s.sessionFixation(f->f.changeSessionId()))
             .logout(l->l.disable()).httpBasic(h->h.disable()).formLogin(f->f.disable());

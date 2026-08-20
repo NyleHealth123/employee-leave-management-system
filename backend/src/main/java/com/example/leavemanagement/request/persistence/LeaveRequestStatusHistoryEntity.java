@@ -15,5 +15,7 @@ public class LeaveRequestStatusHistoryEntity {
     @Column(name="created_at") private Instant createdAt;
     protected LeaveRequestStatusHistoryEntity() {}
     public static LeaveRequestStatusHistoryEntity submitted(UUID requestId,UUID actorId){var e=new LeaveRequestStatusHistoryEntity();e.id=UUID.randomUUID();e.requestId=requestId;e.toStatus="PENDING";e.actorUserId=actorId;e.createdAt=Instant.now();return e;}
+    public static LeaveRequestStatusHistoryEntity decision(UUID requestId,String from,String to,UUID actorId,String comment){var e=new LeaveRequestStatusHistoryEntity();e.id=UUID.randomUUID();e.requestId=requestId;e.fromStatus=from;e.toStatus=to;e.actorUserId=actorId;e.comment=comment;e.createdAt=Instant.now();return e;}
+    public UUID getActorUserId(){return actorUserId;} public UUID getRequestId(){return requestId;}
     public String getFromStatus(){return fromStatus;} public String getToStatus(){return toStatus;} public String getComment(){return comment;} public Instant getCreatedAt(){return createdAt;}
 }

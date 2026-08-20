@@ -1,5 +1,4 @@
 package com.example.leavemanagement.request.persistence;
-import org.springframework.data.repository.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
-public interface LeaveRequestBalanceLineRepository extends Repository<LeaveRequestBalanceLineEntity, UUID> { LeaveRequestBalanceLineEntity save(LeaveRequestBalanceLineEntity line); }
-
+public interface LeaveRequestBalanceLineRepository extends JpaRepository<LeaveRequestBalanceLineEntity, UUID> { java.util.List<LeaveRequestBalanceLineEntity> findAllByRequestId(UUID requestId); }

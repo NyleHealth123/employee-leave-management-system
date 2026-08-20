@@ -15,5 +15,6 @@ public class LeaveRequestBalanceLineEntity {
     @Version private long version;
     protected LeaveRequestBalanceLineEntity() {}
     public static LeaveRequestBalanceLineEntity reserved(UUID requestId,UUID balanceId,int units){var e=new LeaveRequestBalanceLineEntity();e.id=UUID.randomUUID();e.requestId=requestId;e.balanceId=balanceId;e.units=units;e.state="RESERVED";e.updatedAt=Instant.now();return e;}
+    public UUID getBalanceId(){return balanceId;} public int getUnits(){return units;} public String getState(){return state;}
+    public void consume(){state="CONSUMED";updatedAt=Instant.now();} public void release(){state="RELEASED";updatedAt=Instant.now();}
 }
-
