@@ -6,7 +6,7 @@
 
 ## Summary
 
-Build a responsive React and TypeScript single-page application backed by one Java 21 Spring Boot service and PostgreSQL. The modular monolith exposes role-oriented REST resources, uses Spring Security server-side session authentication, and keeps authorization and business invariants in transactional application services. PostgreSQL constraints, row locks, normalized half-day occupancy slots, and Flyway migrations protect overlap and balance integrity. All request transitions, balance movements, and required audit records commit atomically.
+Build a responsive React and TypeScript single-page application backed by one Java 21 Spring Boot service and PostgreSQL. The modular monolith exposes role-oriented REST resources, uses Spring Security server-side session authentication, and keeps authorization and business invariants in transactional application services. PostgreSQL constraints, row locks, normalized half-day occupancy slots, and Flyway migrations protect overlap and balance integrity. All request transitions, balance movements, and required audit records commit atomically. A profile-isolated local-demo dataset supplies a repeatable synthetic organization population for the cross-cutting verification and end-to-end workflows defined by FR-036 and SC-011.
 
 ## Technical Context
 
@@ -26,7 +26,7 @@ Build a responsive React and TypeScript single-page application backed by one Ja
 
 **Constraints**: Single organization; no microservices; session authentication only; CSRF protection enabled; administrators create each employee and associated password-backed account together; every account has at least one unique role from `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`; plaintext passwords are input-only and never persisted or returned; manager scope, employee ownership, employee team-calendar privacy, administrator scope, and self-approval restrictions enforced in repository/application services; `tracks_balance=true` always validates and reserves balance; state, balance, reservation, ledger, occupancy, history, and audit changes are atomic; required `expectedVersion` values protect concurrency-sensitive updates; organization-specific rules remain data-driven
 
-**Scale/Scope**: One-organization MVP with paginated organization and history queries. No business volume target is approved, so production capacity sizing is deferred; schema indexes, bounded page sizes, and database-backed concurrency controls avoid coupling correctness to a guessed user count.
+**Scale/Scope**: One-organization MVP with paginated organization and history queries. Production capacity sizing remains deferred because no production business-volume target is approved; schema indexes, bounded page sizes, and database-backed concurrency controls avoid coupling correctness to a guessed user count. The local-demo profile is a deliberate verification fixture with at least 50 and preferably approximately 50–60 synthetic employees, multiple managers with direct reports, and enough varied requests to exercise pagination, reporting, audit browsing, and E2E workflows; this fixture size does not change production provisioning scope.
 
 ## Constitution Check
 
@@ -102,6 +102,7 @@ An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command ha
 - Keep CSRF enabled. The SPA obtains a CSRF token and sends it in a header for unsafe methods. Production uses one origin; the development server proxies `/api` to avoid broad credentialed CORS.
 - Passwords use Spring Security's delegating password encoder. Authentication failures return generic messages; unauthenticated and forbidden API requests return consistent `401` and `403` problem responses.
 - Administrator employee creation provisions the employee profile and its password-backed user account in one transaction. `initialPassword` is required only on that creation command, is hashed before persistence, and is never serialized in an employee, user, principal, or audit response. The MVP adds no reset, invitation, SSO, magic-link, or first-login password-change workflow.
+- Local-demo administrator, manager, and employee login credentials are supplied only through local environment configuration. The local-demo seed consumes environment-provided password-hash values (generated with the same delegating encoder used by account provisioning) or an equivalent profile-only hashing path; plaintext passwords are never committed to SQL/source, persisted, logged, or returned. Missing demo credential configuration fails local-demo startup rather than falling back to defaults.
 - Every account has one or more unique roles drawn only from `EMPLOYEE`, `MANAGER`, and `ADMINISTRATOR`. Create/update DTOs and employee/principal response DTOs use the same closed role enum and non-empty, duplicate-free array constraints.
 - Endpoint role checks are supplemented by repository/application-service predicates. Employee-private queries require `request.employee_id = actor.employee_id`; manager queries require `request.employee.manager_id = actor.employee_id`; decisions repeat that predicate after locking and require `request.employee_id != actor.employee_id`; administrator endpoints require `ADMINISTRATOR` and use no manager impersonation path.
 - The employee team-calendar query returns only `PENDING`/`APPROVED` entries owned by active employees where `(entry.employee_id = actor.employee_id) OR (actor.manager_id IS NOT NULL AND entry.employee.manager_id = actor.manager_id)`. Its dedicated projection contains only employee display name, start date, end date, and status—never reason, balance, duration mode, leave type, comments, history, identifiers, or audit data.
@@ -118,7 +119,11 @@ An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command ha
 ### Migration and data lifecycle
 
 - Flyway versioned SQL files live in `backend/src/main/resources/db/migration`. Applied migrations are never edited; changes use forward migrations.
-- Initial migrations create identity/role/people tables, policy/holiday tables, balance/request tables, audit/history tables, constraints/indexes, and local-demo seed data in a profile-specific migration location.
+- Production and ordinary `local`/`test` profiles activate only `classpath:db/migration`; they never include the local-demo location. The `local-demo` profile explicitly activates both `classpath:db/migration` and `classpath:db/local-demo`, and startup fails closed if that profile is not active or required demo credential properties are absent. Production startup therefore remains independent of demo data.
+- T118 adds the repeatable migration `backend/src/main/resources/db/local-demo/R__local_demo_data.sql`. It uses stable deterministic UUIDs (or another deterministic key strategy) for the administrator, manager accounts, employee profiles, roles, leave types, policy versions, holidays, balances, and representative requests so a clean reset/recreation is predictable and reruns do not create accidental duplicates.
+- The seed contains at least 50 and preferably approximately 50–60 synthetic employee profiles, at least one administrator account, multiple manager accounts, and realistic direct-report assignments. It uses only existing model fields: employee identity/display values, roles, manager relationships, leave types, policy versions, configured weekly-off/holiday rules, balances, requests, and their authoritative status/history/audit mechanisms; it does not invent department or other schema fields merely for realism.
+- Seed requests cover valid representative `PENDING`, `APPROVED`, `REJECTED`, and `CANCELLED` states, with balance, occupancy, status-history, audit, and reporting compatibility established through approved domain/seed mechanisms rather than ad hoc incompatible rows. Dates and quantities are deterministic and varied enough to exercise period filters, stable pagination, status/type summaries, audit browsing, manager scope, cancellation/correction, and E2E flows.
+- T125 provides profile-safe reset/cleanup support for Playwright/E2E execution. Reset targets only local-demo data and refuses production profiles; repeated supported setup produces the same usable fixture without duplicate or corrupt rows.
 - Tests start an empty PostgreSQL instance, run all migrations, and verify constraints. Schema auto-creation is disabled; ORM validation checks mapping drift.
 - Audit and status history are append-only. Normal deletion uses employee/leave-type deactivation. Holiday removal is soft deactivation (`active=false`); requests, policy snapshots, balance movements, status history, and audit records are retained.
 
@@ -133,6 +138,7 @@ An `expectedVersion` mismatch returns `409 STALE_VERSION`; the entire command ha
 
 - **Domain unit tests**: duration calculation, configured weekly offs and holidays, AM/PM rules, policy versions, cutoff boundaries, the exact ordinary/administrative transition matrix, mandatory tracked-balance reservation, and balance invariants.
 - **Repository/migration tests**: migrations from empty database, foreign/check/unique constraints, active occupancy conflicts, immutable history expectations, query indexes, and pessimistic locks using PostgreSQL Testcontainers.
+- **Local-demo dataset tests**: under the `local-demo` profile, verify at least 50 employees, one administrator, multiple managers with direct reports, representative leave configuration and all four request statuses, deterministic reset/recreation, and absence of demo rows when the production profile is used.
 - **Transactional integration tests**: simultaneous submissions against one balance, exactly-once reservation conversion/release/restoration/re-reservation, manager rejection ledger and availability restoration, all three permitted corrections and all forbidden corrections, rollback when occupancy/ledger/audit/history insertion fails, required stale-version rejection, deterministic multi-period locking, and holiday soft-deactivation retention.
 - **Security/API tests**: login/logout/me/CSRF; administrator employee/account provisioning with required input-only password hashing; closed non-empty duplicate-free role arrays; `401` and `403`; employee ownership; manager direct-report scope; manager self-approval denial; administrator-only configuration, adjustment, reports, and corrections; operation-specific `400`/`401`/`403`/`404`/`409` error contracts and pagination.
 - **Frontend tests**: role routes and navigation, dashboard states, calculation preview, submission validation/conflicts, history, cancellation cutoff messaging, manager decision/comment behavior, administrator forms, API/session errors, keyboard behavior, and responsive variants.
@@ -174,7 +180,8 @@ backend/
     |   |   |-- reporting/{api,application,persistence}/
     |   |   |-- audit/{domain,persistence}/
     |   |   `-- shared/{api,config,security}/
-    |   `-- resources/db/migration/
+    |   |-- resources/db/migration/
+    |   `-- resources/db/local-demo/R__local_demo_data.sql
     `-- test/java/com/example/leavemanagement/
         |-- unit/
         |-- integration/
@@ -208,10 +215,10 @@ README.md
 
 | Principle | Result | Design evidence |
 |---|---|---|
-| Authoritative artifacts | PASS | Data model and contracts implement atomic password-backed employee/account provisioning, closed non-empty roles, credential-safe DTOs, explicit operation error responses, mandatory tracked-balance reservation, the sole allocation mechanism, privacy-safe same-manager calendars, exact correction transitions, holiday soft deactivation, required stale-write tokens, and audit rules without adding HRMS scope. |
-| Traceable delivery | PASS | `contracts/traceability.md` maps requirements and outcomes to stable task/test IDs, and directly affected task wording is reconciled without renumbering. |
+| Authoritative artifacts | PASS | Data model and contracts implement atomic password-backed employee/account provisioning, closed non-empty roles, credential-safe DTOs, explicit operation error responses, mandatory tracked-balance reservation, the sole allocation mechanism, privacy-safe same-manager calendars, exact correction transitions, holiday soft deactivation, required stale-write tokens, audit rules, and the FR-036/SC-011 local-demo verification fixture without adding HRMS scope. |
+| Traceable delivery | PASS | `contracts/traceability.md` maps requirements and outcomes to stable task/test IDs, and directly affected task wording is reconciled without renumbering. The final T131 traceability audit must cover FR-001–FR-036 and SC-001–SC-011, including the local-demo dataset requirement and its verification evidence. |
 | Domain integrity and role separation | PASS | Explicit non-empty closed role assignments, ownership, direct-report, same-manager-calendar, administrator, and self-approval predicates combine with active occupancy constraints, balance movements, and immutable state history. |
-| Security, quality, verified workflows | PASS | Password-backed account provisioning, input-only credential handling, authentication, CSRF, explicit API error contracts, transaction rollback, concurrency, migration, authorization, frontend, and end-to-end tests are explicitly defined. |
+| Security, quality, verified workflows | PASS | Password-backed account provisioning, input-only credential handling, profile-isolated local-demo credentials, authentication, CSRF, explicit API error contracts, transaction rollback, concurrency, migration, authorization, frontend, local-demo, and end-to-end tests are explicitly defined. |
 | Simplicity and deliberate change | PASS | One backend service, one database, one frontend, forward-only migrations, and no distributed workflow are introduced. |
 
 No complexity exception is required.

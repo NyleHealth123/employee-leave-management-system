@@ -16,11 +16,11 @@ Maven is invoked through the checked-in Maven Wrapper, so a separate Maven insta
 | Component | Default | Notes |
 |---|---|---|
 | PostgreSQL | `localhost:5432` | Started by root `compose.yaml`; credentials supplied by local environment file |
-| Backend | `http://localhost:8080` | Spring profile `local`; runs Flyway migrations on startup |
+| Backend | `http://localhost:8080` | Spring profile `local` for ordinary development; use `local-demo` to additionally activate profile-isolated demo data |
 | Frontend | `http://localhost:5173` | Vite proxies `/api` to backend and uses strict fixed port |
 | Production route model | One origin | SPA and `/api` share an origin; session cookies and CSRF remain enabled |
 
-Create a local environment file from a committed example and set database credentials plus local-only demo account passwords. The real environment file must remain ignored. Demo seeding is enabled only by the `local-demo` profile/location and must fail closed outside that profile.
+Create a local environment file from a committed example and set database credentials plus local-only demo account passwords. The real environment file must remain ignored. `local` is the ordinary development profile. `local-demo` is the development/demo profile that additionally activates `classpath:db/local-demo`; normal `local`, test, and production configurations activate only the standard migration location and must never load `classpath:db/local-demo`. Demo seeding must fail closed outside `local-demo`, and missing required demo credential configuration must fail local-demo startup/setup rather than use insecure defaults.
 
 ## Start the application
 
@@ -48,6 +48,22 @@ npm run dev
 Open `http://localhost:5173`. The frontend should obtain a CSRF token, establish a session through `/api/auth/login`, and route the signed-in user to a dashboard permitted by their roles.
 
 On macOS/Linux, use `./mvnw` in place of `.\mvnw.cmd`.
+
+### Local-demo dataset acceptance (FR-036 / SC-011)
+
+After a clean `local-demo` initialization or supported reset, verify and record the following before running the workflow scenarios:
+
+1. **Employee population**: at least 50 synthetic employees exist, preferably approximately 50–60, and no real personal information is present.
+2. **Role population**: at least one administrator, multiple managers, and employee accounts exist.
+3. **Reporting structure**: managers have direct reports and every seeded manager relationship is valid for manager-scope authorization.
+4. **Business configuration**: leave types, effective policies, supported weekly-off configuration, holidays, and employee leave balances exist.
+5. **Representative leave data**: valid requests exist in `PENDING`, `APPROVED`, `REJECTED`, and `CANCELLED` states.
+6. **Workflow usability**: employee workflows have usable demo accounts/data; manager scope contains direct-report requests; administrator organization views contain enough rows for reporting and pagination; audit and reporting views contain representative data.
+7. **Repeatability**: clean reset/recreation restores the expected dataset, and repeating the supported setup does not create unexpected duplicate or corrupt rows.
+8. **Credential safety**: credentials come from local environment configuration; no plaintext password is stored in SQL, source, logs, or API responses; missing required demo credentials cause local-demo startup/setup to fail rather than use insecure defaults.
+9. **Production isolation**: production does not activate `classpath:db/local-demo`, production startup does not depend on demo data, reset/cleanup refuses production configuration, and no production migration introduces demo rows.
+
+Record these checks as part of T127 acceptance evidence.
 
 ## Automated verification
 
