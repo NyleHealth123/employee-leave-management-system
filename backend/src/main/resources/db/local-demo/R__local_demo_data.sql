@@ -12,14 +12,6 @@ DECLARE
     annual_policy uuid := md5('demo-policy-annual-v1')::uuid;
     sick_policy uuid := md5('demo-policy-sick-v1')::uuid;
     personal_policy uuid := md5('demo-policy-personal-v1')::uuid;
-    i integer;
-    request_id uuid;
-    balance_id uuid;
-    employee_id uuid;
-    account_id uuid;
-    manager_id uuid;
-    status_value varchar(16);
-    request_start date;
 BEGIN
     -- Remove only deterministic demo rows, including rows created by a previous repeatable run.
     DELETE FROM audit_event
@@ -27,15 +19,15 @@ BEGIN
         OR entity_id IN (
             SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n)
         );
-    DELETE FROM leave_request_status_history
-     WHERE request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
-    DELETE FROM leave_balance_movement
-     WHERE actor_user_id IN (SELECT id FROM user_account WHERE normalized_login LIKE 'demo.%')
-        OR request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
-    DELETE FROM leave_request_balance_line
-     WHERE request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
-    DELETE FROM leave_request_slot
-     WHERE request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
+    DELETE FROM leave_request_status_history AS status_history
+     WHERE status_history.request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
+    DELETE FROM leave_balance_movement AS balance_movement
+     WHERE balance_movement.actor_user_id IN (SELECT account.id FROM user_account AS account WHERE account.normalized_login LIKE 'demo.%')
+        OR balance_movement.request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
+    DELETE FROM leave_request_balance_line AS balance_line
+     WHERE balance_line.request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
+    DELETE FROM leave_request_slot AS request_slot
+     WHERE request_slot.request_id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
     DELETE FROM leave_request
      WHERE id IN (SELECT md5('demo-request-' || n)::uuid FROM generate_series(1, 50) AS s(n));
     DELETE FROM leave_balance
