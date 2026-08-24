@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @ActiveProfiles("local-demo")
 class LocalDemoDatasetTest extends PostgresIntegrationTest {
-    private static final String TEST_HASH = "{bcrypt}$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+    private static final String TEST_HASH = "{bcrypt}$2y$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     @Autowired JdbcTemplate jdbc;
     @Autowired LocalDemoResetService resets;
@@ -50,7 +50,9 @@ class LocalDemoDatasetTest extends PostgresIntegrationTest {
     @Test
     void usesEncodedCredentialPlaceholdersAndProductionConfigurationDoesNotActivateDemoLocation() {
         assertThat(jdbc.queryForList("select password_hash from user_account where normalized_login like 'demo.%'", String.class))
-                .allMatch(value -> value.startsWith("{bcrypt}"));
+                .allMatch(TEST_HASH::equals)
+                .allMatch(value -> value.startsWith("{bcrypt}$2y$"))
+                .noneMatch(value -> value.contains("${"));
         assertThat(getClass().getResourceAsStream("/application.yml")).isNotNull();
         try (var stream = getClass().getResourceAsStream("/application.yml")) {
             var production = new String(stream.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
