@@ -155,12 +155,12 @@ jobs:
           done
           cat frontend-e2e.log
           exit 1
-      - name: Run Playwright smoke
+      - name: Run Playwright acceptance suite
         working-directory: e2e
         run: |
           npm ci
           npx playwright install --with-deps chromium
-          npm test -- tests/leave-management-smoke.spec.ts
+          npm test
       - name: Stop local-demo stack
         if: always()
         shell: bash
