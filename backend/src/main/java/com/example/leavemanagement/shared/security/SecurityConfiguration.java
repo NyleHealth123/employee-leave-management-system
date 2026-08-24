@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.context.*;
 
 @Configuration @EnableWebSecurity
@@ -25,7 +26,7 @@ public class SecurityConfiguration {
     @Bean SecurityContextRepository securityContextRepository(){return new HttpSessionSecurityContextRepository();}
     @Bean CsrfTokenRepository csrfTokenRepository(){var csrf=new CookieCsrfTokenRepository();csrf.setCookiePath("/");csrf.setHeaderName("X-XSRF-TOKEN");csrf.setCookieName("XSRF-TOKEN");return csrf;}
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http,ObjectMapper mapper,SecurityContextRepository contexts,CsrfTokenRepository csrf)throws Exception{
-        http.csrf(c->c.csrfTokenRepository(csrf))
+        http.csrf(c->c.csrfTokenRepository(csrf).csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
             .securityContext(c->c.securityContextRepository(contexts).requireExplicitSave(true))
             .authorizeHttpRequests(a->a.requestMatchers("/api/auth/csrf","/api/auth/login","/actuator/health").permitAll().requestMatchers("/api/admin/**").hasRole("ADMINISTRATOR").requestMatchers("/api/employee/**","/api/leave-types","/api/holidays").hasRole("EMPLOYEE").requestMatchers("/api/manager/**").hasRole("MANAGER").anyRequest().authenticated())
             .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->write(mapper,req,res,401,"AUTHENTICATION_REQUIRED","Authentication is required")).accessDeniedHandler((req,res,ex)->write(mapper,req,res,403,"ACCESS_DENIED","Access is denied")))
