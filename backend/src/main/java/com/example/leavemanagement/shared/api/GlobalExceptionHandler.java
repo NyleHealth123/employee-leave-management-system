@@ -1,6 +1,8 @@
 package com.example.leavemanagement.shared.api;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
@@ -9,6 +11,7 @@ import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger LOGGER=LoggerFactory.getLogger(GlobalExceptionHandler.class);
     @ExceptionHandler(DomainException.class)
     ResponseEntity<ProblemResponse> domain(DomainException ex,HttpServletRequest request){return problem(ex.status(),ex.code(),ex.getMessage(),request,List.of());}
     @ExceptionHandler({HttpMessageNotReadableException.class})
@@ -16,6 +19,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     ResponseEntity<ProblemResponse> invalid(MethodArgumentNotValidException ex,HttpServletRequest request){var fields=ex.getBindingResult().getFieldErrors().stream().map(e->new ProblemResponse.FieldError(e.getField(),e.getCode(),e.getDefaultMessage())).toList();return problem(400,"VALIDATION_FAILED","Request validation failed",request,fields);}
     @ExceptionHandler(Exception.class)
-    ResponseEntity<ProblemResponse> unexpected(Exception ex,HttpServletRequest request){return problem(500,"INTERNAL_ERROR","The request could not be completed",request,List.of());}
+    ResponseEntity<ProblemResponse> unexpected(Exception ex,HttpServletRequest request){
+        var correlationId=String.valueOf(request.getAttribute(CorrelationIdFilter.ATTRIBUTE));
+        LOGGER.error("Unexpected request failure correlationId={} method={} uri={} exceptionClass={} exceptionMessage={}",correlationId,request.getMethod(),request.getRequestURI(),ex.getClass().getName(),ex.getMessage(),ex);
+        return problem(500,"INTERNAL_ERROR","The request could not be completed",request,List.of());
+    }
     private ResponseEntity<ProblemResponse> problem(int status,String code,String detail,HttpServletRequest request,List<ProblemResponse.FieldError> fields){var id=String.valueOf(request.getAttribute(CorrelationIdFilter.ATTRIBUTE));var body=new ProblemResponse(java.net.URI.create("about:blank"),HttpStatus.valueOf(status).getReasonPhrase(),status,code,detail,id,fields);return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(body);}
 }
