@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  use: { baseURL: 'http://localhost:5173', trace: 'on-first-retry' },
+  globalSetup: './global-setup.ts',
+  workers: 1,
+  use: { baseURL: process.env.E2E_WEB_BASE_URL ?? 'http://localhost:5173', trace: 'on-first-retry' },
 })
-

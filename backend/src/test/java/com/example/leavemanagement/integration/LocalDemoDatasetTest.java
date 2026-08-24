@@ -1,5 +1,6 @@
 package com.example.leavemanagement.integration;
 
+import com.example.leavemanagement.shared.application.LocalDemoResetService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,12 +17,15 @@ class LocalDemoDatasetTest extends PostgresIntegrationTest {
     private static final String TEST_HASH = "{bcrypt}$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
     @Autowired JdbcTemplate jdbc;
+    @Autowired LocalDemoResetService resets;
 
     @DynamicPropertySource
     static void demoCredentials(DynamicPropertyRegistry registry) {
         registry.add("spring.flyway.placeholders.demo_admin_password_hash", () -> TEST_HASH);
         registry.add("spring.flyway.placeholders.demo_manager_password_hash", () -> TEST_HASH);
         registry.add("spring.flyway.placeholders.demo_employee_password_hash", () -> TEST_HASH);
+        registry.add("app.local-demo.reset-enabled", () -> "true");
+        registry.add("app.local-demo.expected-database", POSTGRES::getDatabaseName);
     }
 
     @Test
@@ -54,6 +58,27 @@ class LocalDemoDatasetTest extends PostgresIntegrationTest {
         } catch (java.io.IOException ex) {
             throw new AssertionError(ex);
         }
+    }
+
+    @Test
+    void resetTwiceRecreatesTheSameAuthoritativeDatasetWithoutDuplicates() {
+        var first = resets.reset();
+        var firstIds = deterministicIds();
+        var second = resets.reset();
+
+        assertThat(second).isEqualTo(first);
+        assertThat(deterministicIds()).containsExactlyElementsOf(firstIds);
+        assertThat(second.employees()).isGreaterThanOrEqualTo(50);
+        assertThat(second.managers()).isGreaterThanOrEqualTo(2);
+        assertThat(second.managerRelationships()).isGreaterThanOrEqualTo(50);
+        assertThat(second.requestStatuses()).containsKeys("PENDING", "APPROVED", "REJECTED", "CANCELLED");
+        assertThat(second.requestStatuses().values()).allMatch(count -> count > 0);
+        assertThat(count("select count(*) from (select normalized_login from user_account group by normalized_login having count(*) > 1) duplicates")).isZero();
+        assertThat(count("select count(*) from leave_request")).isEqualTo(second.requests());
+    }
+
+    private java.util.List<String> deterministicIds() {
+        return jdbc.queryForList("select id::text from employee_profile order by id", String.class);
     }
 
     private int count(String sql) { return jdbc.queryForObject(sql, Integer.class); }

@@ -1,10 +1,15 @@
 spring:
   flyway:
     locations: classpath:db/migration,classpath:db/local-demo
+    clean-disabled: false
     placeholders:
       demo_admin_password_hash: ${DEMO_ADMIN_PASSWORD_HASH}
       demo_manager_password_hash: ${DEMO_MANAGER_PASSWORD_HASH}
       demo_employee_password_hash: ${DEMO_EMPLOYEE_PASSWORD_HASH}
+app:
+  local-demo:
+    reset-enabled: ${LOCAL_DEMO_RESET_ENABLED:false}
+    expected-database: ${LOCAL_DEMO_EXPECTED_DATABASE:}
 server:
   servlet:
     session:
