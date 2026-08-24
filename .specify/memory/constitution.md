@@ -1,10 +1,17 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.0.0
-- Modified principles: none
-- Added sections: none
+- Version change: 1.0.0 -> 1.1.0
+- Modified principles: V. Simplicity and Deliberate Change (clarified the scope of
+  planning-stage architecture decisions)
+- Added principles/sections: VI. Six-Layer Architecture and Dependency Boundaries
 - Removed sections: none
-- Follow-up TODOs: none
+- Follow-up TODOs:
+  - TODO(PLAN_SYNC): Reconcile plan.md's Constitution Check and architecture narrative with
+    Principle VI and the six named layers.
+  - TODO(TASKS_SYNC): Reconcile tasks.md with any approved work needed to verify the expanded
+    layer boundaries; do not create naming-only production refactors.
+  - spec.md requires no synchronization because this amendment governs implementation
+    architecture without changing feature requirements or acceptance criteria.
 -->
 # Employee Leave Management System Constitution
 
@@ -48,8 +55,46 @@ Architecture and implementation MUST be simple, maintainable, modular, and appro
 employee leave management application. Contributors MUST prefer simple solutions over premature
 optimization or unnecessary complexity. Database and schema changes MUST be deliberate,
 documented in the relevant planning and task artifacts, and verified with the feature they
-support. Technology, framework, database, and detailed architecture choices remain planning-stage
-decisions unless a specification explicitly requires them.
+support. Technology, framework, database, and architecture choices not governed by this
+constitution remain planning-stage decisions unless a specification explicitly requires them.
+
+### VI. Six-Layer Architecture and Dependency Boundaries
+
+The backend MUST preserve the modular-monolith design and use the following six architectural
+layers across its feature modules and shared code. These layer names describe responsibilities;
+they do not require every module to contain every package or require existing packages to be
+renamed.
+
+1. **API/Presentation Layer**: Controllers, HTTP request/response DTOs, transport validation, and
+   API error mapping receive and present REST interactions. This layer MUST delegate use cases to
+   the Application Layer and MUST NOT directly access repositories, persistence entities, or
+   database APIs.
+2. **Application Layer**: Application services coordinate use cases, authorization context,
+   domain operations, persistence operations, and atomic outcomes. Application-service commands
+   MUST own transaction boundaries for multi-step business workflows.
+3. **Domain Layer**: Domain types and services express reusable leave-management rules,
+   calculations, invariants, and state behavior. Domain rules MUST remain independent of HTTP,
+   controller, request/response DTO, and other transport concerns and MUST NOT depend on
+   persistence or framework implementation details.
+4. **Persistence Layer**: Repository interfaces, persistence entities, query projections, and
+   database-access implementations map and store normalized state. This layer MUST encapsulate
+   JPA/database access, locking, and persistence-specific queries; database constraints and
+   migrations remain final integrity guards where the approved design assigns that role.
+5. **Infrastructure Layer**: Framework wiring, runtime configuration, clocks, database and
+   migration configuration, and external integration adapters provide technical capabilities to
+   the other layers. Infrastructure MUST implement approved technical concerns without becoming
+   an alternate location for business rules or use-case orchestration.
+6. **Security/Cross-Cutting Layer**: Authentication, coarse endpoint authorization, current-actor
+   context, CSRF/session controls, correlation, shared failure handling, and similar system-wide
+   policies apply consistently across modules. These concerns MUST NOT bypass application-level
+   scope checks, authorization rules, domain invariants, or transactional workflows.
+
+Dependencies MUST be deliberate, reviewable, and free of circular dependencies. Cross-module
+calls MUST continue through application/domain interfaces rather than controller or repository
+shortcuts. New implementation MUST preserve these responsibilities and boundaries. Existing code
+MUST NOT be refactored merely to align package or layer naming; a refactor requires a real boundary
+violation identified through an approved specification, plan, or task and verified in proportion
+to its risk.
 
 ## Domain and Data Constraints
 
@@ -77,4 +122,4 @@ MINOR for added principles or materially expanded guidance, and PATCH for non-se
 clarifications or corrections. Each feature review MUST assess compliance with this constitution;
 exceptions require an explicit, documented approval and a follow-up plan where applicable.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-08-19
+**Version**: 1.1.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-08-24
