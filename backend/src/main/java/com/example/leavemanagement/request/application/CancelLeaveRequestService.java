@@ -24,7 +24,8 @@ public class CancelLeaveRequestService {
         var request=requests.lockOwned(id,actor.employeeId()).orElseThrow(()->new DomainException(404,"RESOURCE_NOT_FOUND","Leave request was not found"));
         if(request.getVersion()!=expectedVersion) throw stale();
         var policy=policies.effective(request.getLeaveTypeId(),request.getStartDate());
-        var eligibility=CancellationPolicy.evaluate(request,policy,x->x.getEmployeeId().equals(actor.employeeId()),Instant.now(clock),clock.getZone());
+        var eligibility=CancellationPolicy.evaluate(request.getEmployeeId().equals(actor.employeeId()),request.getStatus(),
+                request.getStartDate(),policy.getCancellationCutoffDays(),Instant.now(clock),clock.getZone());
         if(!eligibility.allowed()) throw new DomainException("APPROVED".equals(request.getStatus())?422:409,"APPROVED".equals(request.getStatus())?"CANCELLATION_CUTOFF_PASSED":"INVALID_STATUS_TRANSITION",eligibility.blockedReason());
         var requestLines=lines.findAllByRequestId(request.getId()).stream().sorted(Comparator.comparing(x->x.getBalanceId().toString())).toList();
         var lockedBalances=new LinkedHashMap<UUID,LeaveBalanceEntity>();

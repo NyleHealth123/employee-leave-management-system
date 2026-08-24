@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - verify/admin-t073-t092
+      - "verify/**"
 
 jobs:
   backend:
@@ -20,7 +20,7 @@ jobs:
           java-version: "21"
           cache: maven
       - run: chmod +x mvnw
-      - run: ./mvnw test
+      - run: ./mvnw verify
 
   frontend:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -39,3 +39,136 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run lint
+
+  e2e:
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - name: Generate ephemeral local-demo credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y apache2-utils
+
+          database_password="$(openssl rand -hex 24)"
+          admin_password="$(openssl rand -hex 24)"
+          manager_password="$(openssl rand -hex 24)"
+          employee_password="$(openssl rand -hex 24)"
+          admin_hash="{bcrypt}$(htpasswd -bnBC 10 '' "$admin_password" | tr -d ':\n')"
+          manager_hash="{bcrypt}$(htpasswd -bnBC 10 '' "$manager_password" | tr -d ':\n')"
+          employee_hash="{bcrypt}$(htpasswd -bnBC 10 '' "$employee_password" | tr -d ':\n')"
+          out_of_scope_request_id="$(python3 -c "import hashlib, uuid; print(uuid.UUID(hashlib.md5(b'demo-request-2').hexdigest()))")"
+
+          for value in "$database_password" "$admin_password" "$manager_password" "$employee_password" \
+            "$admin_hash" "$manager_hash" "$employee_hash"; do
+            echo "::add-mask::$value"
+          done
+
+          {
+            echo "POSTGRES_DB=leave_management"
+            echo "POSTGRES_USER=leave_app"
+            echo "POSTGRES_PASSWORD=$database_password"
+            echo "DB_URL=jdbc:postgresql://127.0.0.1:5432/leave_management"
+            echo "DB_USERNAME=leave_app"
+            echo "DB_PASSWORD=$database_password"
+            echo "DEMO_ADMIN_PASSWORD_HASH=$admin_hash"
+            echo "DEMO_MANAGER_PASSWORD_HASH=$manager_hash"
+            echo "DEMO_EMPLOYEE_PASSWORD_HASH=$employee_hash"
+            echo "LOCAL_DEMO_RESET_ENABLED=true"
+            echo "LOCAL_DEMO_EXPECTED_DATABASE=leave_management"
+            echo "E2E_API_BASE_URL=http://127.0.0.1:8080"
+            echo "E2E_WEB_BASE_URL=http://127.0.0.1:5173"
+            echo "E2E_ADMIN_LOGIN=demo.admin"
+            echo "E2E_ADMIN_PASSWORD=$admin_password"
+            echo "E2E_MANAGER_LOGIN=demo.manager01"
+            echo "E2E_MANAGER_PASSWORD=$manager_password"
+            echo "E2E_EMPLOYEE_LOGIN=demo.employee01"
+            echo "E2E_EMPLOYEE_PASSWORD=$employee_password"
+            echo "E2E_OUT_OF_SCOPE_REQUEST_ID=$out_of_scope_request_id"
+            echo "E2E_APPROVAL_DATE=2026-11-17"
+            echo "E2E_REJECTION_DATE=2026-11-19"
+          } >> "$GITHUB_ENV"
+      - name: Start PostgreSQL
+        run: |
+          docker compose up -d postgres
+          for attempt in {1..30}; do
+            if docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose logs postgres
+          exit 1
+      - name: Start local-demo backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x backend/mvnw
+          cd backend
+          nohup ./mvnw spring-boot:run -Dspring-boot.run.profiles=local-demo > ../backend-e2e.log 2>&1 &
+          echo $! > ../backend-e2e.pid
+          cd ..
+          for attempt in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:8080/actuator/health > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat backend-e2e.pid)" 2>/dev/null; then
+              cat backend-e2e.log
+              exit 1
+            fi
+            sleep 2
+          done
+          cat backend-e2e.log
+          exit 1
+      - name: Start frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix frontend
+          cd frontend
+          nohup npm run dev -- --host 127.0.0.1 > ../frontend-e2e.log 2>&1 &
+          echo $! > ../frontend-e2e.pid
+          cd ..
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5173 > /dev/null; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat frontend-e2e.pid)" 2>/dev/null; then
+              cat frontend-e2e.log
+              exit 1
+            fi
+            sleep 2
+          done
+          cat frontend-e2e.log
+          exit 1
+      - name: Run Playwright smoke
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm test -- tests/leave-management-smoke.spec.ts
+      - name: Stop local-demo stack
+        if: always()
+        shell: bash
+        run: |
+          if test -f backend-e2e.pid; then kill "$(cat backend-e2e.pid)" 2>/dev/null || true; fi
+          if test -f frontend-e2e.pid; then kill "$(cat frontend-e2e.pid)" 2>/dev/null || true; fi
+          if test -f backend-e2e.log; then tail -n 200 backend-e2e.log; fi
+          if test -f frontend-e2e.log; then tail -n 100 frontend-e2e.log; fi
+          if test -n "${POSTGRES_PASSWORD:-}"; then
+            docker compose down --volumes --remove-orphans
+          fi
