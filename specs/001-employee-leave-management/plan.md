@@ -43,10 +43,62 @@ Build a responsive React and TypeScript single-page application backed by one Ja
 | Domain integrity and role separation | PASS | Closed non-empty role assignment, employee ownership, normal reporting scope, administrator authority, self-approval denial, state transitions, reservations, and cancellation cutoffs are explicit design constraints. |
 | Security, quality, and verified workflows | PASS | Atomic password-backed account provisioning, input-only credential hashing, session security, CSRF, layered authorization, explicit error contracts, transaction tests, PostgreSQL integration tests, frontend tests, and end-to-end acceptance coverage are planned. |
 | Simplicity and deliberate change | PASS | One backend service and one frontend are used; Flyway versioned migrations govern every persistent schema change. |
+| Six-Layer Architecture and Dependency Boundaries | PASS | The modular-monolith backend is explicitly organized into API/Presentation, Application, Domain, Persistence, Infrastructure, and Security/Cross-Cutting layers. Design is aligned; automated architecture-boundary verification is gated by T126. |
 
 No constitution violation or unjustified complexity is present.
 
 ## Architecture
+
+### Six-layer backend architecture
+
+The backend remains a modular monolith. Its feature modules and shared packages are governed by these six architectural layers; the layer names describe responsibilities and dependency boundaries and do not require a mass package-renaming refactor.
+
+#### API/Presentation Layer
+
+**Responsibilities**: HTTP controllers, request/response DTOs, transport validation, and HTTP/problem-response mapping.
+
+**Rules**: This layer MUST NOT directly access repositories or persistence. It MUST delegate use-case behavior to the Application layer and MUST NOT contain leave-policy or domain business rules.
+
+#### Application Layer
+
+**Responsibilities**: Use-case orchestration, transaction boundaries, workflow coordination, role/scope decisions requiring use-case context, and coordination of domain and persistence operations.
+
+**Rules**: This layer MAY depend on Domain and Persistence abstractions as appropriate to the existing codebase. It MUST NOT move transport concerns into application logic.
+
+#### Domain Layer
+
+**Responsibilities**: Reusable leave rules, calculations, invariants, and domain concepts.
+
+**Rules**: This layer MUST remain independent of HTTP/transport concerns and MUST NOT depend on API/Presentation.
+
+#### Persistence Layer
+
+**Responsibilities**: Repositories, JPA entities/projections, locking, normalized database access, and persistence-specific queries.
+
+**Rules**: This layer MUST NOT implement HTTP behavior and MUST NOT be called directly by API controllers.
+
+#### Infrastructure Layer
+
+**Responsibilities**: Framework/configuration wiring, Flyway/database configuration, integration adapters, clocks/platform services, and shared technical configuration.
+
+**Rules**: This layer MUST support rather than bypass application or domain rules.
+
+#### Security/Cross-Cutting Layer
+
+**Responsibilities**: Spring Security, authentication, authorization infrastructure, CSRF/session handling, correlation/request filters, and shared failure/security handling.
+
+**Rules**: This layer MUST NOT bypass domain/application authorization rules. It MAY enforce coarse transport/endpoint protection while detailed ownership and scope rules remain in approved application/repository mechanisms.
+
+### Dependency boundaries
+
+- No API/Presentation code may directly depend on Persistence repositories or entities.
+- Domain code must not depend on API/Presentation code.
+- No circular architectural dependencies are permitted between the six layers.
+- Infrastructure and Security/Cross-Cutting code must not bypass application/domain policy.
+- New code must preserve these boundaries.
+- Existing code is not to be mass-refactored solely to rename packages.
+- Actual violations found by verification must be corrected through approved task scope.
+- T126 owns automated verification of these architecture boundaries as part of backend Maven verification; until T126 is completed, the design is aligned but automated verification has not yet passed.
 
 ### Runtime boundaries
 
@@ -220,5 +272,6 @@ README.md
 | Domain integrity and role separation | PASS | Explicit non-empty closed role assignments, ownership, direct-report, same-manager-calendar, administrator, and self-approval predicates combine with active occupancy constraints, balance movements, and immutable state history. |
 | Security, quality, verified workflows | PASS | Password-backed account provisioning, input-only credential handling, profile-isolated local-demo credentials, authentication, CSRF, explicit API error contracts, transaction rollback, concurrency, migration, authorization, frontend, local-demo, and end-to-end tests are explicitly defined. |
 | Simplicity and deliberate change | PASS | One backend service, one database, one frontend, forward-only migrations, and no distributed workflow are introduced. |
+| Six-Layer Architecture and Dependency Boundaries | PASS | The modular-monolith backend uses API/Presentation, Application, Domain, Persistence, Infrastructure, and Security/Cross-Cutting layers with explicit dependency rules. PASS — design is aligned; automated architecture-boundary verification is gated by T126. |
 
 No complexity exception is required.
