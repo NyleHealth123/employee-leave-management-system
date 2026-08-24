@@ -23,7 +23,7 @@ public class SecurityConfiguration {
     @Bean PasswordEncoder passwordEncoder(){return PasswordEncoderFactories.createDelegatingPasswordEncoder();}
     @Bean AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)throws Exception{return configuration.getAuthenticationManager();}
     @Bean SecurityContextRepository securityContextRepository(){return new HttpSessionSecurityContextRepository();}
-    @Bean CsrfTokenRepository csrfTokenRepository(){var csrf=CookieCsrfTokenRepository.withHttpOnlyFalse();csrf.setCookiePath("/");csrf.setHeaderName("X-XSRF-TOKEN");csrf.setCookieName("XSRF-TOKEN");return csrf;}
+    @Bean CsrfTokenRepository csrfTokenRepository(){var csrf=new CookieCsrfTokenRepository();csrf.setCookiePath("/");csrf.setHeaderName("X-XSRF-TOKEN");csrf.setCookieName("XSRF-TOKEN");return csrf;}
     @Bean SecurityFilterChain securityFilterChain(HttpSecurity http,ObjectMapper mapper,SecurityContextRepository contexts,CsrfTokenRepository csrf)throws Exception{
         http.csrf(c->c.csrfTokenRepository(csrf))
             .securityContext(c->c.securityContextRepository(contexts).requireExplicitSave(true))
