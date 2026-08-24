@@ -248,6 +248,28 @@ Evidence baseline: GitHub Actions Verify run #23 at commit `2186fd4` passed the 
 
 T127 completion gate: a hosted Verify run must pass the updated backend suite and both Playwright specifications from a fresh T125 reset. Until that evidence exists, keep T127 `[ ]`.
 
+## T128 timed usability and message-clarity verification
+
+Automated browser timing is a repeatable real-stack prerequisite, not a substitute for the participant percentages and ratings required by these criteria. `e2e/tests/usability-timing.spec.ts` uses the T118 dataset after the T125 reset, performs every visible navigation and form action, waits only for deterministic UI outcomes, records elapsed milliseconds as a Playwright attachment and console output, and asserts the original strict thresholds. The hosted Verify workflow runs the full Playwright suite against PostgreSQL, the `local-demo` backend, and the frontend.
+
+| Criterion | Exact criterion | Actor and starting state | Workflow and measurement | Existing partial evidence | Additional acceptance evidence and status |
+|---|---|---|---|---|---|
+| SC-001 | In usability testing, at least 90% of employees can submit a valid leave request and confirm its calculated duration in under 3 minutes without assistance. | Employee participant, signed in with the employee dashboard/navigation visibly ready and a freshly reset valid local-demo balance | Start at the ready signed-in state; navigate to Request leave, select the type, enter dates/reason, calculate, visibly confirm the authoritative duration, submit, and stop when the request detail visibly shows `PENDING` and its duration. A participant passes only when elapsed time is strictly below 180,000 ms and no assistance was provided. | T124 smoke and `LeaveRequestFlow.test.tsx` prove the route and controls; the new Playwright timing guard asserts the complete system path below 180,000 ms. | Hosted real-stack timing is pending. Human participant records must show `passing employees / participating employees >= 0.90`; no participant result has been fabricated, so SC-001 is not yet acceptance-complete. |
+| SC-005 | At least 95% of manager test participants can find and decide a pending direct-report request in under 2 minutes after signing in. | Manager participant immediately after successful sign-in, with navigation visible and a deterministic pending request belonging to their direct report | Start immediately after sign-in succeeds; open Approvals, find the specified direct-report request, open it, decide it, and stop when the resulting status is visible. A participant passes only when elapsed time is strictly below 120,000 ms. | T124 smoke proves manager scope and decision behavior; the new Playwright timing guard creates the request through the employee UI and asserts the manager path below 120,000 ms. | Hosted real-stack timing is pending. Human participant records must show `passing managers / participating managers >= 0.95`; SC-005 is not yet acceptance-complete. |
+| SC-008 | At least 90% of tested users rate validation and error messages as clear enough to identify the action needed to proceed. | Tested employee, manager, or administrator viewing a validation or error message produced by an assigned realistic action | After the message is displayed, ask exactly whether it is clear enough to identify the action needed to proceed and record `Yes` or `No`; do not coach or paraphrase before the rating. | `LeaveRequestFlow.test.tsx`, `LeaveCancellation.test.tsx`, `ManagerWorkflow.test.tsx`, `AdminConfiguration.test.tsx`, `apiClient.test.ts`, and the real-stack 401/403/out-of-scope acceptance paths prove messages are rendered and correlated with failures. | Human ratings must show `Yes ratings / all collected ratings >= 0.90`. Automated assertions cannot establish a user rating; SC-008 remains pending participant evidence. |
+
+### Repeatable participant record
+
+Use a clean T125 reset for each independent session or record the deterministic request IDs allocated to that session. Use anonymized participant identifiers and do not record credentials.
+
+| Participant ID | Role | Criterion | Start timestamp | Successful outcome timestamp | Elapsed seconds | Completed successfully | Assistance provided | Message/action evaluated | Clear enough to proceed (`Yes`/`No`) | Notes |
+|---|---|---|---|---|---:|---|---|---|---|---|
+| _record during session_ |  |  |  |  |  |  |  |  |  |  |
+
+Calculate each rate from all applicable recorded participants; do not discard failures or assisted SC-001 attempts. SC-001 passes only at or above 90% with every counted pass under 180 seconds and unassisted. SC-005 passes only at or above 95% with every counted pass under 120 seconds. SC-008 passes only at or above 90% `Yes` ratings. Record the participant counts, passing counts, calculated rates, and hosted Playwright timing values here before marking T128 complete.
+
+T128 completion gate: the hosted real-stack timing guard must pass and actual participant results must satisfy all three percentages. Until both forms of evidence exist, keep T128 `[ ]`.
+
 ## Contract and model references
 
 - REST contract: [contracts/openapi.yaml](./contracts/openapi.yaml)
